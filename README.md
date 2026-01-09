@@ -15,6 +15,7 @@ Write agent rules and commands once and generate for all. Support everybody's fa
 
 - Aider
 - Claude Code
+- Cline
 - Cody
 - Continue
 - Cursor
