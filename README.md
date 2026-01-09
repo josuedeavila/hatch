@@ -20,6 +20,7 @@ Write agent rules and commands once and generate for all. Support everybody's fa
 - Continue
 - Cursor
 - GitHub Copilot
+- OpenCode
 - VS Code
 - Windsurf
 - Zed
