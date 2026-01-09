@@ -2,8 +2,14 @@
 Write agent rules and commands once and generate for all.
 
 1. Copy the .hatch folder into your repo
-2. Edit the .hatch/commands and .hatch rules
-3. Run ./hatch/gen.sh to generate config
+2. Edit the .hatch/src/* files
+3. Run ./hatch/gen.sh to generate config for all supported IDEs
+
+**Source files**
+
+- `/src/commands` - each file is a command the LLM can carry out
+- `/src/rules` - each file becomes a rule that the LLM will follow
+- `/src/.ignore` - list of files and folders the LLM should ignore
 
 **Supported IDEs:**
 

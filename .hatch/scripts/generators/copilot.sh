@@ -81,5 +81,18 @@ generate_copilot_prompts() {
     done
 }
 
+# Copy ignore file for GitHub Copilot
+copy_copilot_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$GITHUB_DIR/.copilotignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    mkdir -p "$GITHUB_DIR"
+    cp "$src_file" "$dest_file"
+    echo -e "${GREEN}copilot${NC} .github/.copilotignore"
+}
+
 generate_copilot_instructions
 generate_copilot_prompts
+copy_copilot_ignore

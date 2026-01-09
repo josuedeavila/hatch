@@ -60,5 +60,17 @@ generate_cursor_commands() {
     done
 }
 
+# Copy ignore file for Cursor
+copy_cursor_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$PROJECT_ROOT/.cursorignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    cp "$src_file" "$dest_file"
+    echo -e "${CYAN}cursor${NC} .cursorignore"
+}
+
 generate_cursor_rules
 generate_cursor_commands
+copy_cursor_ignore

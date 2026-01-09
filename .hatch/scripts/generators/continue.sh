@@ -52,4 +52,16 @@ generate_continue_prompt() {
     echo -e "${BLUE}continue${NC} .continue/system_prompt.md"
 }
 
+# Copy ignore file for Continue
+copy_continue_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$PROJECT_ROOT/.continueignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    cp "$src_file" "$dest_file"
+    echo -e "${BLUE}continue${NC} .continueignore"
+}
+
 generate_continue_prompt
+copy_continue_ignore

@@ -50,4 +50,16 @@ generate_aider_md() {
     echo -e "${MAGENTA}aider${NC} AIDER.md"
 }
 
+# Copy ignore file for Aider
+copy_aider_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$PROJECT_ROOT/.aiderignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    cp "$src_file" "$dest_file"
+    echo -e "${MAGENTA}aider${NC} .aiderignore"
+}
+
 generate_aider_md
+copy_aider_ignore

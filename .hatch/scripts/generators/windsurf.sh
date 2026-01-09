@@ -52,4 +52,16 @@ generate_windsurf_rules() {
     echo -e "${CYAN}windsurf${NC} .windsurf/rules.md"
 }
 
+# Copy ignore file for Windsurf
+copy_windsurf_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$PROJECT_ROOT/.windsurfignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    cp "$src_file" "$dest_file"
+    echo -e "${CYAN}windsurf${NC} .windsurfignore"
+}
+
 generate_windsurf_rules
+copy_windsurf_ignore

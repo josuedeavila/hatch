@@ -50,4 +50,17 @@ generate_cody_md() {
     echo -e "${MAGENTA}cody${NC} CODY.md"
 }
 
+# Copy ignore file for Cody
+copy_cody_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$PROJECT_ROOT/.cody/ignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    mkdir -p "$PROJECT_ROOT/.cody"
+    cp "$src_file" "$dest_file"
+    echo -e "${MAGENTA}cody${NC} .cody/ignore"
+}
+
 generate_cody_md
+copy_cody_ignore

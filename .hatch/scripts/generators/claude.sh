@@ -71,5 +71,18 @@ generate_claude_commands() {
     done
 }
 
+# Copy ignore file for Claude Code
+copy_claude_ignore() {
+    local src_file="$HATCH_DIR/src/.ignore"
+    local dest_file="$CLAUDE_DIR/.claudeignore"
+
+    [[ ! -f "$src_file" ]] && return
+
+    mkdir -p "$CLAUDE_DIR"
+    cp "$src_file" "$dest_file"
+    echo -e "${MAGENTA}claude${NC} .claude/.claudeignore"
+}
+
 generate_claude_md
 generate_claude_commands
+copy_claude_ignore
