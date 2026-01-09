@@ -1,5 +1,5 @@
 # hatch
-Write agent rules and commands once and generate for all.
+Write agent rules and commands once and generate for all. Support everybody's favourite LLM IDE at the same time, with one set of source files.
 
 1. Copy the .hatch folder into your repo
 2. Edit the .hatch/src/* files
