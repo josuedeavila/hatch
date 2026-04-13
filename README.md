@@ -27,6 +27,15 @@ hatch new <kind> [title]       # create a new source file (rule, skill, command,
 hatch gen                      # write all target files
 hatch list                     # dry-run; show what would be written
 hatch clean                    # remove everything hatch generated
+hatch meta skill               # print a SKILL.md teaching a coding agent about hatch
+```
+
+`hatch meta skill` writes to stdout, so you can pipe it straight into your
+project's skills directory to teach a coding agent how to extend the
+hatch source tree itself:
+
+```
+hatch meta skill > .claude/skills/hatch/SKILL.md
 ```
 
 All subcommands operate on the current working directory — `cd` into your

@@ -37,6 +37,8 @@ func Run(ctx context.Context, version string, targets *target.Set, args []string
 		return cmdInit(ctx, rest, stdout, stderr)
 	case "new":
 		return cmdNew(ctx, rest, stdin, stdout, stderr)
+	case "meta":
+		return cmdMeta(ctx, rest, stdout, stderr)
 	case "version", "--version", "-v":
 		fmt.Fprintln(stdout, version)
 		return nil
@@ -60,6 +62,7 @@ Usage:
   hatch clean [-targets list]   remove generated outputs
   hatch init                    scaffold .hatch/
   hatch new <kind> [title]      create a new source file
+  hatch meta skill              print a SKILL.md teaching a coding agent about hatch
   hatch version                 print version and exit
   hatch help                    this message
 
