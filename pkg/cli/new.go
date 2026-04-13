@@ -26,11 +26,10 @@ const maxSlugLength = 60
 // kind is one of rule, skill, command, agent. If title is omitted, the
 // user is prompted on stdin. The title is slugged into a filesystem-safe
 // name and the appropriate template is written under .hatch/. After
-// writing, the user is reminded to run `hatch generate`.
+// writing, the user is reminded to run `hatch gen`.
 func cmdNew(_ context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("C", ".", "project root directory")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -64,7 +63,7 @@ func cmdNew(_ context.Context, args []string, stdin io.Reader, stdout, stderr io
 		return fmt.Errorf("hatch new: %q does not contain any slug characters", title)
 	}
 
-	path := filepath.Join(*root, ".hatch", tmpl.pathOf(slug))
+	path := filepath.Join(".hatch", tmpl.pathOf(slug))
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("hatch new: %s already exists", path)
 	}
@@ -78,7 +77,7 @@ func cmdNew(_ context.Context, args []string, stdin io.Reader, stdout, stderr io
 	}
 
 	fmt.Fprintf(stdout, "created %s\n", path)
-	fmt.Fprintln(stdout, "edit the file, then run `hatch generate` to write the output files.")
+	fmt.Fprintln(stdout, "edit the file, then run `hatch gen` to write the output files.")
 	return nil
 }
 

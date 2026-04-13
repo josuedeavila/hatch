@@ -10,13 +10,13 @@ import (
 )
 
 // cmdInit scaffolds `.hatch/` with one example primitive of each kind so a
-// new user can `hatch generate` immediately and see output.
+// new user can `hatch gen` immediately and see output.
 func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) error {
-	fs, root, _ := commonFlags("init", stderr)
+	fs, _ := commonFlags("init", stderr)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	srcRoot := filepath.Join(*root, ".hatch")
+	srcRoot := ".hatch"
 	for _, sub := range []string{"rules", "skills", "commands", "agents"} {
 		if err := os.MkdirAll(filepath.Join(srcRoot, sub), 0o755); err != nil {
 			return err

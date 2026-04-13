@@ -2,65 +2,66 @@ package cli_test
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/matryer/is"
 )
 
-func TestGenerate_WritesExpectedFilesAcrossTargets(t *testing.T) {
+func TestGen_WritesExpectedFilesAcrossTargets(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	stdout, _, err := invoke(t, "generate", "-C", dir)
+	stdout, _, err := invoke(t, "gen")
 	is.NoErr(err)
 	is.True(strings.Contains(stdout, "CLAUDE.md"))
 	is.True(strings.Contains(stdout, "AGENTS.md"))
 	is.True(strings.Contains(stdout, ".github/copilot-instructions.md"))
 
-	claudeMD, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	claudeMD, err := os.ReadFile("CLAUDE.md")
 	is.NoErr(err)
 	is.True(strings.Contains(string(claudeMD), "<!-- hatch:begin v1 -->"))
 	is.True(strings.Contains(string(claudeMD), "Be concise."))
 
-	skill, err := os.ReadFile(filepath.Join(dir, ".claude/skills/review-pr/SKILL.md"))
+	skill, err := os.ReadFile(".claude/skills/review-pr/SKILL.md")
 	is.NoErr(err)
 	is.True(strings.Contains(string(skill), "description: Review a PR."))
 }
 
-func TestGenerate_Idempotent(t *testing.T) {
+func TestGen_Idempotent(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	_, _, err := invoke(t, "generate", "-C", dir)
+	_, _, err := invoke(t, "gen")
 	is.NoErr(err)
-	first, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	first, err := os.ReadFile("CLAUDE.md")
 	is.NoErr(err)
 
-	_, _, err = invoke(t, "generate", "-C", dir)
+	_, _, err = invoke(t, "gen")
 	is.NoErr(err)
-	second, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
+	second, err := os.ReadFile("CLAUDE.md")
 	is.NoErr(err)
 
 	is.Equal(string(first), string(second))
 }
 
-func TestGenerate_PreservesUserContentAroundBlock(t *testing.T) {
+func TestGen_PreservesUserContentAroundBlock(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	userFile := filepath.Join(dir, "CLAUDE.md")
 	userContent := "# My notes\n\nHand-written content here.\n"
-	is.NoErr(os.WriteFile(userFile, []byte(userContent), 0o644))
+	is.NoErr(os.WriteFile("CLAUDE.md", []byte(userContent), 0o644))
 
-	_, _, err := invoke(t, "generate", "-C", dir)
+	_, _, err := invoke(t, "gen")
 	is.NoErr(err)
 
-	got, err := os.ReadFile(userFile)
+	got, err := os.ReadFile("CLAUDE.md")
 	is.NoErr(err)
 	s := string(got)
 	is.True(strings.Contains(s, "# My notes"))
@@ -69,29 +70,33 @@ func TestGenerate_PreservesUserContentAroundBlock(t *testing.T) {
 	is.True(strings.Contains(s, "Be concise."))
 }
 
-func TestGenerate_TargetsFlag(t *testing.T) {
+func TestGen_TargetsFlag(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	stdout, _, err := invoke(t, "generate", "-C", dir, "-targets", "claude")
+	stdout, _, err := invoke(t, "gen", "-targets", "claude")
 	is.NoErr(err)
 	is.True(strings.Contains(stdout, "CLAUDE.md"))
 	is.True(!strings.Contains(stdout, "AGENTS.md"))
 }
 
-func TestGenerate_UnknownTargetErrors(t *testing.T) {
+func TestGen_UnknownTargetErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
-	_, _, err := invoke(t, "generate", "-C", dir, "-targets", "nosuch")
+	t.Chdir(dir)
+	_, _, err := invoke(t, "gen", "-targets", "nosuch")
 	is.True(err != nil)
 }
 
-func TestGenerate_AliasGen(t *testing.T) {
+func TestGen_LegacyGenerateWordRemoved(t *testing.T) {
+	// `hatch generate` (the old long form) should now be an unknown command.
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
-	_, _, err := invoke(t, "gen", "-C", dir)
-	is.NoErr(err)
+	t.Chdir(dir)
+	_, _, err := invoke(t, "generate")
+	is.True(err != nil)
 }

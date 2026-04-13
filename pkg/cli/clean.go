@@ -12,11 +12,11 @@ import (
 	"github.com/matryer/hatch/pkg/target"
 )
 
-// cmdClean computes what a fresh build WOULD write, then removes those files
-// (for ModeFile) or strips just the hatch block (for ModeBlock). No manifest
-// is kept: the source tree is the single source of truth for what exists.
+// cmdClean re-derives what a fresh `hatch gen` would write from the current
+// source tree, then removes those files (for ModeFile) or strips just the
+// hatch block (for ModeBlock). No manifest is kept.
 func cmdClean(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs, root, targetsList := commonFlags("clean", stderr)
+	fs, targetsList := commonFlags("clean", stderr)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -24,7 +24,7 @@ func cmdClean(_ context.Context, available *target.Set, args []string, stdout, s
 	if err != nil {
 		return err
 	}
-	src, err := source.Load(*root)
+	src, err := source.Load(".")
 	if err != nil {
 		return err
 	}
@@ -35,7 +35,7 @@ func cmdClean(_ context.Context, available *target.Set, args []string, stdout, s
 			return fmt.Errorf("%s: %w", t.Name(), err)
 		}
 		for _, a := range arts {
-			if err := cleanArtifact(*root, a); err != nil {
+			if err := cleanArtifact(a); err != nil {
 				fmt.Fprintf(stderr, "hatch: %s: %s\n", a.Path, err)
 				continue
 			}
@@ -45,29 +45,29 @@ func cmdClean(_ context.Context, available *target.Set, args []string, stdout, s
 	return nil
 }
 
-func cleanArtifact(root string, a target.Artifact) error {
-	full := filepath.Join(root, a.Path)
+func cleanArtifact(a target.Artifact) error {
 	switch a.Mode {
 	case target.ModeFile:
-		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(a.Path); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		pruneEmptyDirs(root, filepath.Dir(full))
+		pruneEmptyDirs(filepath.Dir(a.Path))
 		return nil
 	case target.ModeBlock:
-		return block.Strip(full, block.CurrentMarker)
+		return block.Strip(a.Path, block.CurrentMarker)
 	default:
 		return fmt.Errorf("unknown write mode %q", a.Mode)
 	}
 }
 
 // pruneEmptyDirs walks upward from dir, removing directories that become
-// empty, stopping at root.
-func pruneEmptyDirs(root, dir string) {
-	absRoot, _ := filepath.Abs(root)
+// empty, stopping at the current working directory.
+func pruneEmptyDirs(dir string) {
+	cwd, _ := os.Getwd()
+	absCwd, _ := filepath.Abs(cwd)
 	for {
 		absDir, _ := filepath.Abs(dir)
-		if absDir == absRoot || len(absDir) <= len(absRoot) {
+		if absDir == absCwd || len(absDir) <= len(absCwd) {
 			return
 		}
 		entries, err := os.ReadDir(dir)

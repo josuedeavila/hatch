@@ -14,8 +14,10 @@ import (
 	"github.com/matryer/hatch/pkg/target"
 )
 
-func cmdGenerate(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs, root, targetsList := commonFlags("generate", stderr)
+// cmdGen is the implementation of `hatch gen`. It always operates on the
+// current working directory.
+func cmdGen(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+	fs, targetsList := commonFlags("gen", stderr)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -23,7 +25,7 @@ func cmdGenerate(_ context.Context, available *target.Set, args []string, stdout
 	if err != nil {
 		return err
 	}
-	src, err := source.Load(*root)
+	src, err := source.Load(".")
 	if err != nil {
 		return err
 	}
@@ -55,7 +57,7 @@ func cmdGenerate(_ context.Context, available *target.Set, args []string, stdout
 		if err != nil {
 			return err
 		}
-		if err := writeArtifact(*root, merged); err != nil {
+		if err := writeArtifact(merged); err != nil {
 			return fmt.Errorf("%s: %w", p, err)
 		}
 		fmt.Fprintf(stdout, "wrote %s (%s)\n", merged.Path, merged.Mode)
@@ -143,19 +145,18 @@ func mergeArtifacts(path string, group []pending) (target.Artifact, error) {
 	}
 }
 
-// writeArtifact writes a single artifact relative to root. Block-mode
-// artifacts are merged into the target file between hatch markers;
-// file-mode artifacts overwrite the whole file.
-func writeArtifact(root string, a target.Artifact) error {
-	full := filepath.Join(root, a.Path)
+// writeArtifact writes a single artifact relative to the current working
+// directory. Block-mode artifacts are merged into the target file between
+// hatch markers; file-mode artifacts overwrite the whole file.
+func writeArtifact(a target.Artifact) error {
 	switch a.Mode {
 	case target.ModeFile:
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(a.Path), 0o755); err != nil {
 			return err
 		}
-		return os.WriteFile(full, []byte(a.Content), 0o644)
+		return os.WriteFile(a.Path, []byte(a.Content), 0o644)
 	case target.ModeBlock:
-		return block.Inject(full, block.CurrentMarker, a.Content)
+		return block.Inject(a.Path, block.CurrentMarker, a.Content)
 	default:
 		return fmt.Errorf("unknown write mode %q", a.Mode)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 func cmdList(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs, root, targetsList := commonFlags("list", stderr)
+	fs, targetsList := commonFlags("list", stderr)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -18,7 +18,7 @@ func cmdList(_ context.Context, available *target.Set, args []string, stdout, st
 	if err != nil {
 		return err
 	}
-	src, err := source.Load(*root)
+	src, err := source.Load(".")
 	if err != nil {
 		return err
 	}

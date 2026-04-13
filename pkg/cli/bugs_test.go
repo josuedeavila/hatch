@@ -20,10 +20,11 @@ func TestBug_InitOutputIsDeterministic(t *testing.T) {
 
 	run := func() []string {
 		dir := t.TempDir()
+		t.Chdir(dir)
 		var stdout, stderr bytes.Buffer
-		err := cli.Run(ctx, "test", allTargets(), []string{"hatch", "init", "-C", dir}, strings.NewReader(""), &stdout, &stderr)
+		err := cli.Run(ctx, "test", allTargets(), []string{"hatch", "init"}, strings.NewReader(""), &stdout, &stderr)
 		is.NoErr(err)
-		return extractCreatedSuffixes(stdout.String(), dir)
+		return extractCreatedLines(stdout.String())
 	}
 
 	first := run()
@@ -36,18 +37,14 @@ func TestBug_InitOutputIsDeterministic(t *testing.T) {
 	}
 }
 
-// extractCreatedSuffixes returns the path suffixes from each "created X"
-// line, stripped of the temp-dir prefix so runs against different dirs are
-// directly comparable.
-func extractCreatedSuffixes(stdout, dir string) []string {
+// extractCreatedLines returns the path portion of each "created X" line.
+func extractCreatedLines(stdout string) []string {
 	var out []string
 	for _, line := range strings.Split(stdout, "\n") {
 		if !strings.HasPrefix(line, "created ") {
 			continue
 		}
-		path := strings.TrimPrefix(line, "created ")
-		path = strings.TrimPrefix(path, dir+"/")
-		out = append(out, path)
+		out = append(out, strings.TrimPrefix(line, "created "))
 	}
 	return out
 }

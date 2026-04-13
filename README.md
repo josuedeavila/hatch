@@ -23,18 +23,22 @@ mise run install
 
 ```
 hatch init                     # scaffold .hatch/ with one example of each primitive
-hatch new <kind> [title]       # create one new source file (rule, skill, command, agent)
-hatch generate                 # write all target files
+hatch new <kind> [title]       # create a new source file (rule, skill, command, agent)
+hatch gen                      # write all target files
 hatch list                     # dry-run; show what would be written
 hatch clean                    # remove everything hatch generated
 ```
+
+All subcommands operate on the current working directory — `cd` into your
+project first. `gen`, `list`, and `clean` accept `-targets list`
+(comma-separated) to narrow which agents are generated for.
 
 `hatch new` takes the primitive kind and an optional title:
 
 ```
 $ hatch new rule "Always write tests"
 created .hatch/rules/always-write-tests.md
-edit the file, then run `hatch generate` to write the output files.
+edit the file, then run `hatch gen` to write the output files.
 
 $ hatch new rule
 rule name: Always write tests
@@ -45,10 +49,6 @@ created .hatch/rules/always-write-tests.md
 The title is slugged into a filesystem-safe name (lowercase, hyphens,
 truncated to 60 characters). `hatch new skill "..."` creates a skill
 directory with a `SKILL.md` inside it, ready for sibling assets.
-
-Every subcommand accepts `-C dir` to operate on a different directory.
-`generate`, `list`, and `clean` also accept `-targets list` (comma-separated)
-to narrow the set of agents. `hatch gen` is an alias for `hatch generate`.
 
 ## Source layout
 
@@ -67,26 +67,9 @@ to narrow the set of agents. `hatch gen` is an alias for `hatch generate`.
     security-auditor.md     # delegated sub-agents
 ```
 
-Source files are markdown. Frontmatter is YAML:
-
-```markdown
----
-description: Review a PR for correctness, style, and tests.
-name: review-pr               # optional; derived from filename/dirname if absent
-targets: [claude, opencode]   # optional; default = all
-applyTo: "**/*.go"            # rules only; scopes the rule to a glob
-claude:                       # optional per-target frontmatter passthrough
-  allowed-tools: [Read, Grep]
-copilot:
-  model: gpt-4.1
----
-
-Body markdown. Two template vars substitute when generated files are written:
-- {{agent}}  → the agent display name, e.g. "Claude Code"
-- {{target}} → the target short name, e.g. "claude"
-```
-
-`description` is the only required field on skills, commands, and agents.
+Source files are plain markdown. Skills, commands, and agents carry a small
+YAML frontmatter header (see [Frontmatter](#frontmatter) below for the full
+list of fields).
 
 ## Target mapping
 
@@ -118,7 +101,7 @@ Hatch writes two kinds of generated file:
 - **Block-injected** — hatch writes a delimited block inside a file that may
   contain user-authored content around it. Applies to `CLAUDE.md`, `AGENTS.md`,
   and `.github/copilot-instructions.md`. Content outside the markers is
-  preserved across `hatch generate` and `hatch clean`.
+  preserved across `hatch gen` and `hatch clean`.
 
 The marker format is:
 
@@ -130,6 +113,39 @@ The marker format is:
 
 These are HTML comments so they are invisible in rendered markdown, and any
 tool that recognises the marker can find and replace the block.
+
+## Frontmatter
+
+Skills, commands, and agents start with a YAML frontmatter block delimited by
+`---`. Only `description` is required — everything else is optional.
+
+```markdown
+---
+description: Review a PR for correctness, style, and tests.
+name: review-pr
+targets: [claude, opencode]
+applyTo: "**/*.go"
+claude:
+  allowed-tools: [Read, Grep]
+copilot:
+  model: gpt-4.1
+---
+
+Body markdown. Two template vars substitute when generated files are written:
+- {{agent}}  → the agent display name, e.g. "Claude Code"
+- {{target}} → the target short name, e.g. "claude"
+```
+
+| Field         | Applies to              | Required    | Meaning                                                                                           |
+| ------------- | ----------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `description` | skill, command, agent   | yes         | One-sentence summary. Every downstream agent either requires or recommends this field.            |
+| `name`        | skill, command, agent   | no          | Overrides the filename/dirname slug. Absent → derived from the source file path.                  |
+| `targets`     | all                     | no          | List of target names this primitive should reach. Empty/absent means every target. A single string is accepted. |
+| `applyTo`     | rule                    | no          | Glob pattern limiting the rule to matching paths. Copilot gets a native path-scoped instruction file; other targets wrap it in a scoped heading. |
+| `claude:`     | all                     | no          | Per-target passthrough block — keys inside are merged into the generated file's own frontmatter, for that target only. Also `codex:`, `copilot:`, `opencode:`. |
+
+Rules are plain markdown and don't need frontmatter at all. If they have one,
+only `targets` and `applyTo` are meaningful.
 
 ## Development
 
@@ -156,7 +172,7 @@ go build -o bin/hatch ./cmd/hatch
 ```
 cmd/hatch/main.go                 main binary
 pkg/
-  cli/                            public CLI: cli.Run(ctx, ver, targets, args, out, err)
+  cli/                            public CLI: cli.Run(ctx, ver, targets, args, in, out, err)
   source/                         load .hatch/ into a Source
   config/                         optional .hatch/config.yaml
   render/                         deterministic YAML frontmatter + body templating

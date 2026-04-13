@@ -11,8 +11,9 @@ func TestList_PrintsTargetsAndArtifacts(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	stdout, _, err := invoke(t, "list", "-C", dir)
+	stdout, _, err := invoke(t, "list")
 	is.NoErr(err)
 	is.True(strings.Contains(stdout, "Claude Code (claude)"))
 	is.True(strings.Contains(stdout, "CLAUDE.md"))
@@ -23,6 +24,7 @@ func TestList_PrintsTargetsAndArtifacts(t *testing.T) {
 func TestList_NoSourceErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "list", "-C", dir)
+	t.Chdir(dir)
+	_, _, err := invoke(t, "list")
 	is.True(err != nil)
 }

@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,10 +11,12 @@ import (
 func TestNew_RuleWithTitleArg(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	stdout, _, err := invoke(t, "new", "-C", dir, "rule", "My Rule")
+	t.Chdir(dir)
+
+	stdout, _, err := invoke(t, "new", "rule", "My Rule")
 	is.NoErr(err)
 
-	path := filepath.Join(dir, ".hatch/rules/my-rule.md")
+	path := ".hatch/rules/my-rule.md"
 	_, err = os.Stat(path)
 	is.NoErr(err)
 
@@ -23,20 +24,21 @@ func TestNew_RuleWithTitleArg(t *testing.T) {
 	is.NoErr(err)
 	is.True(strings.Contains(string(body), "# My Rule"))
 
-	// Output should confirm creation and remind the user to run generate.
+	// Output should confirm creation and remind the user to run gen.
 	is.True(strings.Contains(stdout, "created"))
 	is.True(strings.Contains(stdout, "my-rule.md"))
-	is.True(strings.Contains(stdout, "hatch generate"))
+	is.True(strings.Contains(stdout, "hatch gen"))
 }
 
 func TestNew_SkillCreatesDirectoryWithSKILLMd(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "skill", "Review PR")
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "new", "skill", "Review PR")
 	is.NoErr(err)
 
-	path := filepath.Join(dir, ".hatch/skills/review-pr/SKILL.md")
-	body, err := os.ReadFile(path)
+	body, err := os.ReadFile(".hatch/skills/review-pr/SKILL.md")
 	is.NoErr(err)
 	is.True(strings.Contains(string(body), "description:"))
 	is.True(strings.Contains(string(body), "# Review PR"))
@@ -45,18 +47,22 @@ func TestNew_SkillCreatesDirectoryWithSKILLMd(t *testing.T) {
 func TestNew_CommandFile(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "command", "Commit Changes")
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "new", "command", "Commit Changes")
 	is.NoErr(err)
-	_, err = os.Stat(filepath.Join(dir, ".hatch/commands/commit-changes.md"))
+	_, err = os.Stat(".hatch/commands/commit-changes.md")
 	is.NoErr(err)
 }
 
 func TestNew_AgentFile(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "agent", "Security Auditor")
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "new", "agent", "Security Auditor")
 	is.NoErr(err)
-	_, err = os.Stat(filepath.Join(dir, ".hatch/agents/security-auditor.md"))
+	_, err = os.Stat(".hatch/agents/security-auditor.md")
 	is.NoErr(err)
 }
 
@@ -65,33 +71,34 @@ func TestNew_MultiWordTitleAsSeparateArgs(t *testing.T) {
 	// spaces so quoting is optional.
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "rule", "my", "new", "rule")
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "new", "rule", "my", "new", "rule")
 	is.NoErr(err)
-	_, err = os.Stat(filepath.Join(dir, ".hatch/rules/my-new-rule.md"))
+	_, err = os.Stat(".hatch/rules/my-new-rule.md")
 	is.NoErr(err)
 }
 
 func TestNew_PromptsForTitleWhenMissing(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	stdout, _, err := invoke_newStdin(t, "My Prompted Rule\n", "new", "-C", dir, "rule")
+	t.Chdir(dir)
+
+	stdout, _, err := invokeWithStdin(t, "My Prompted Rule\n", "new", "rule")
 	is.NoErr(err)
 	is.True(strings.Contains(stdout, "rule name:"))
-	_, err = os.Stat(filepath.Join(dir, ".hatch/rules/my-prompted-rule.md"))
+	_, err = os.Stat(".hatch/rules/my-prompted-rule.md")
 	is.NoErr(err)
-}
-
-// helper shim so the test reads clearly
-func invoke_newStdin(t *testing.T, stdin string, args ...string) (string, string, error) {
-	return invokeWithStdin(t, stdin, args...)
 }
 
 func TestNew_RefusesToOverwriteExisting(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "rule", "dup")
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "new", "rule", "dup")
 	is.NoErr(err)
-	_, _, err = invoke(t, "new", "-C", dir, "rule", "dup")
+	_, _, err = invoke(t, "new", "rule", "dup")
 	is.True(err != nil) // second call must fail
 	is.True(strings.Contains(err.Error(), "already exists"))
 }
@@ -99,27 +106,31 @@ func TestNew_RefusesToOverwriteExisting(t *testing.T) {
 func TestNew_UnknownKindErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "nope", "x")
+	t.Chdir(dir)
+	_, _, err := invoke(t, "new", "nope", "x")
 	is.True(err != nil)
 }
 
 func TestNew_MissingKindErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir)
+	t.Chdir(dir)
+	_, _, err := invoke(t, "new")
 	is.True(err != nil)
 }
 
 func TestNew_EmptyTitleErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "rule", "   ")
+	t.Chdir(dir)
+	_, _, err := invoke(t, "new", "rule", "   ")
 	is.True(err != nil)
 }
 
 func TestNew_PunctuationOnlyTitleErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
-	_, _, err := invoke(t, "new", "-C", dir, "rule", "!!!")
+	t.Chdir(dir)
+	_, _, err := invoke(t, "new", "rule", "!!!")
 	is.True(err != nil)
 }

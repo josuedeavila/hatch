@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,18 +12,19 @@ func TestClean_RemovesFilesAndStripsBlocks(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	_, _, err := invoke(t, "generate", "-C", dir)
+	_, _, err := invoke(t, "gen")
 	is.NoErr(err)
 
-	_, _, err = invoke(t, "clean", "-C", dir)
+	_, _, err = invoke(t, "clean")
 	is.NoErr(err)
 
-	_, err = os.Stat(filepath.Join(dir, ".claude/skills/review-pr/SKILL.md"))
+	_, err = os.Stat(".claude/skills/review-pr/SKILL.md")
 	is.True(os.IsNotExist(err))
 
 	// With only hatch content, CLAUDE.md is removed entirely.
-	_, err = os.Stat(filepath.Join(dir, "CLAUDE.md"))
+	_, err = os.Stat("CLAUDE.md")
 	is.True(os.IsNotExist(err))
 }
 
@@ -32,16 +32,16 @@ func TestClean_PreservesSurroundingUserContent(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
+	t.Chdir(dir)
 
-	userFile := filepath.Join(dir, "CLAUDE.md")
-	is.NoErr(os.WriteFile(userFile, []byte("# User\n\nKeep me.\n"), 0o644))
+	is.NoErr(os.WriteFile("CLAUDE.md", []byte("# User\n\nKeep me.\n"), 0o644))
 
-	_, _, err := invoke(t, "generate", "-C", dir)
+	_, _, err := invoke(t, "gen")
 	is.NoErr(err)
-	_, _, err = invoke(t, "clean", "-C", dir)
+	_, _, err = invoke(t, "clean")
 	is.NoErr(err)
 
-	got, err := os.ReadFile(userFile)
+	got, err := os.ReadFile("CLAUDE.md")
 	is.NoErr(err)
 	is.True(strings.Contains(string(got), "# User"))
 	is.True(strings.Contains(string(got), "Keep me."))

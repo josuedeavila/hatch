@@ -27,8 +27,8 @@ func Run(ctx context.Context, version string, targets *target.Set, args []string
 	}
 	cmd, rest := args[1], args[2:]
 	switch cmd {
-	case "generate", "gen":
-		return cmdGenerate(ctx, targets, rest, stdout, stderr)
+	case "gen":
+		return cmdGen(ctx, targets, rest, stdout, stderr)
 	case "list":
 		return cmdList(ctx, targets, rest, stdout, stderr)
 	case "clean":
@@ -55,29 +55,28 @@ Generate rules, skills, commands, and sub-agent definitions for multiple
 coding agents from a single source at .hatch/.
 
 Usage:
-  hatch generate [-C dir] [-targets list]    write all target outputs
-  hatch list     [-C dir] [-targets list]    dry-run; print what would be written
-  hatch clean    [-C dir] [-targets list]    remove generated outputs
-  hatch init     [-C dir]                    scaffold .hatch/
-  hatch new      <kind> [title]              create a new source file
-  hatch version                              print version and exit
-  hatch help                                 this message
+  hatch gen  [-targets list]    write all target outputs
+  hatch list [-targets list]    dry-run; print what would be written
+  hatch clean [-targets list]   remove generated outputs
+  hatch init                    scaffold .hatch/
+  hatch new <kind> [title]      create a new source file
+  hatch version                 print version and exit
+  hatch help                    this message
 
 Flags:
-  -C dir         change to dir before running (default ".")
   -targets list  comma-separated target names (default: all)
 
 Registered targets: %s
 `, version, strings.Join(targets.Names(), ", "))
 }
 
-// commonFlags adds the flags shared by generate/list/clean.
-func commonFlags(name string, stderr io.Writer) (*flag.FlagSet, *string, *string) {
+// commonFlags adds the flags shared by generate/list/clean. All subcommands
+// operate on the current working directory.
+func commonFlags(name string, stderr io.Writer) (*flag.FlagSet, *string) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	root := fs.String("C", ".", "project root directory")
 	targetsList := fs.String("targets", "", "comma-separated target names (default: all)")
-	return fs, root, targetsList
+	return fs, targetsList
 }
 
 // selectTargets resolves the `-targets` flag value against the available set.

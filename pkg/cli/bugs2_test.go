@@ -17,21 +17,22 @@ import (
 func TestBug_AGENTSMdSharedByCodexAndOpenCode(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
+	t.Chdir(dir)
 
 	// Two rules: one shared by all, one targeting codex only. The
 	// codex-only rule must still appear in AGENTS.md — OpenCode's write
 	// of the same file must not erase it.
-	writeFile(t, filepath.Join(dir, ".hatch/rules/shared.md"), "SHARED RULE CONTENT\n")
-	writeFile(t, filepath.Join(dir, ".hatch/rules/codex-only.md"), `---
+	writeFile(t, ".hatch/rules/shared.md", "SHARED RULE CONTENT\n")
+	writeFile(t, ".hatch/rules/codex-only.md", `---
 targets: [codex]
 ---
 CODEX ONLY RULE CONTENT
 `)
 
-	_, _, err := invoke(t, "generate", "-C", dir)
+	_, _, err := invoke(t, "gen")
 	is.NoErr(err)
 
-	got, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	got, err := os.ReadFile("AGENTS.md")
 	is.NoErr(err)
 	s := string(got)
 	is.True(strings.Contains(s, "SHARED RULE CONTENT"))

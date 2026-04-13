@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,8 +11,9 @@ import (
 func TestInit_ScaffoldsAllPrimitives(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
+	t.Chdir(dir)
 
-	stdout, _, err := invoke(t, "init", "-C", dir)
+	stdout, _, err := invoke(t, "init")
 	is.NoErr(err)
 	is.True(strings.Contains(stdout, "created"))
 
@@ -23,7 +23,7 @@ func TestInit_ScaffoldsAllPrimitives(t *testing.T) {
 		".hatch/commands/commit.md",
 		".hatch/agents/security-auditor.md",
 	} {
-		_, err := os.Stat(filepath.Join(dir, rel))
+		_, err := os.Stat(rel)
 		is.NoErr(err) // scaffold file should exist
 	}
 }
@@ -31,17 +31,18 @@ func TestInit_ScaffoldsAllPrimitives(t *testing.T) {
 func TestInit_SkipsExistingFiles(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
+	t.Chdir(dir)
 
 	// First init creates files.
-	_, _, err := invoke(t, "init", "-C", dir)
+	_, _, err := invoke(t, "init")
 	is.NoErr(err)
 
 	// Overwrite a file with custom content.
-	rulePath := filepath.Join(dir, ".hatch/rules/coding-style.md")
+	rulePath := ".hatch/rules/coding-style.md"
 	is.NoErr(os.WriteFile(rulePath, []byte("custom content"), 0o644))
 
 	// Second init should NOT overwrite the user's custom content.
-	_, _, err = invoke(t, "init", "-C", dir)
+	_, _, err = invoke(t, "init")
 	is.NoErr(err)
 	got, err := os.ReadFile(rulePath)
 	is.NoErr(err)
