@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -26,6 +28,28 @@ func TestClean_RemovesFilesAndStripsBlocks(t *testing.T) {
 	// With only hatch content, CLAUDE.md is removed entirely.
 	_, err = os.Stat("CLAUDE.md")
 	is.True(os.IsNotExist(err))
+}
+
+func TestClean_RespectsCanceledContext(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	// First, generate so there's something to clean.
+	_, _, err := invoke(t, "gen")
+	is.NoErr(err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err = invokeWithCtx(t, ctx, "", "clean")
+	is.True(err != nil)
+	is.True(errors.Is(err, context.Canceled))
+
+	// Generated files should still exist — clean bailed before touching them.
+	_, err = os.Stat("CLAUDE.md")
+	is.NoErr(err)
 }
 
 func TestClean_PreservesSurroundingUserContent(t *testing.T) {

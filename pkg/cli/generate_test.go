@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -89,6 +91,24 @@ func TestGen_UnknownTargetErrors(t *testing.T) {
 	t.Chdir(dir)
 	_, _, err := invoke(t, "gen", "-targets", "nosuch")
 	is.True(err != nil)
+}
+
+func TestGen_RespectsCanceledContext(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, _, err := invokeWithCtx(t, ctx, "", "gen")
+	is.True(err != nil)
+	is.True(errors.Is(err, context.Canceled))
+
+	// Nothing should have been written.
+	_, err = os.Stat("CLAUDE.md")
+	is.True(os.IsNotExist(err))
 }
 
 func TestGen_LegacyGenerateWordRemoved(t *testing.T) {

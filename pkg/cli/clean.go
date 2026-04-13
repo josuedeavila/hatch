@@ -15,9 +15,12 @@ import (
 // cmdClean re-derives what a fresh `hatch gen` would write from the current
 // source tree, then removes those files (for ModeFile) or strips just the
 // hatch block (for ModeBlock). No manifest is kept.
-func cmdClean(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+func cmdClean(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	fs, targetsList := commonFlags("clean", stderr)
 	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	targets, err := selectTargets(available, *targetsList)
@@ -30,11 +33,17 @@ func cmdClean(_ context.Context, available *target.Set, args []string, stdout, s
 	}
 
 	for _, t := range targets.All() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		arts, err := t.Generate(src)
 		if err != nil {
 			return fmt.Errorf("%s: %w", t.Name(), err)
 		}
 		for _, a := range arts {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if err := cleanArtifact(a); err != nil {
 				fmt.Fprintf(stderr, "hatch: %s: %s\n", a.Path, err)
 				continue

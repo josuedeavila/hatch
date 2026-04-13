@@ -36,8 +36,15 @@ func invoke(t *testing.T, args ...string) (string, string, error) {
 // drive an interactive subcommand (currently only `hatch new`).
 func invokeWithStdin(t *testing.T, stdin string, args ...string) (string, string, error) {
 	t.Helper()
+	return invokeWithCtx(t, context.Background(), stdin, args...)
+}
+
+// invokeWithCtx drives the CLI with a caller-supplied context — used by
+// tests that need to assert cancellation behavior.
+func invokeWithCtx(t *testing.T, ctx context.Context, stdin string, args ...string) (string, string, error) {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
-	err := cli.Run(context.Background(), "test", allTargets(), append([]string{"hatch"}, args...), strings.NewReader(stdin), &stdout, &stderr)
+	err := cli.Run(ctx, "test", allTargets(), append([]string{"hatch"}, args...), strings.NewReader(stdin), &stdout, &stderr)
 	return stdout.String(), stderr.String(), err
 }
 

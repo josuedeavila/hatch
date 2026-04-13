@@ -16,9 +16,12 @@ import (
 
 // cmdGen is the implementation of `hatch gen`. It always operates on the
 // current working directory.
-func cmdGen(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	fs, targetsList := commonFlags("gen", stderr)
 	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	targets, err := selectTargets(available, *targetsList)
@@ -35,6 +38,9 @@ func cmdGen(_ context.Context, available *target.Set, args []string, stdout, std
 	// detected and merged rather than letting the last write silently win.
 	byPath := map[string][]pending{}
 	for _, t := range targets.All() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		arts, err := t.Generate(src)
 		if err != nil {
 			return fmt.Errorf("%s: %w", t.Name(), err)
@@ -52,6 +58,9 @@ func cmdGen(_ context.Context, available *target.Set, args []string, stdout, std
 	sort.Strings(paths)
 
 	for _, p := range paths {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		group := byPath[p]
 		merged, err := mergeArtifacts(p, group)
 		if err != nil {
