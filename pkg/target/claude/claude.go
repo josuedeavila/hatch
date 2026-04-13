@@ -1,0 +1,127 @@
+// Package claude emits hatch output for Anthropic Claude Code.
+//
+// Claude Code reads project memory from CLAUDE.md, skills from
+// .claude/skills/<name>/SKILL.md, user-invoked slash commands from
+// .claude/commands/<name>.md, and sub-agents from .claude/agents/<name>.md.
+// See https://code.claude.com/docs/en/ for the full surface.
+package claude
+
+import (
+	"path/filepath"
+	"strings"
+
+	"github.com/matryer/hatch/pkg/render"
+	"github.com/matryer/hatch/pkg/source"
+	"github.com/matryer/hatch/pkg/target"
+)
+
+const (
+	name        = "claude"
+	displayName = "Claude Code"
+)
+
+// Target is the Claude Code emitter.
+type Target struct{}
+
+// New returns a Claude Code target. Callers pass this into a target.Set in
+// main so there are no init-time registrations.
+func New() Target { return Target{} }
+
+func (Target) Name() string        { return name }
+func (Target) DisplayName() string { return displayName }
+
+func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
+	var out []target.Artifact
+
+	// Rules → block inside CLAUDE.md.
+	if body := target.RulesBlock(s, name, displayName); body != "" {
+		out = append(out, target.Artifact{
+			Path:    "CLAUDE.md",
+			Mode:    target.ModeBlock,
+			Content: body,
+		})
+	}
+
+	// Skills → .claude/skills/<name>/SKILL.md (+ sibling assets).
+	for _, sk := range s.Skills {
+		if !sk.HasTarget(name) {
+			continue
+		}
+		content, err := renderSkill(sk, displayName, name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, target.Artifact{
+			Path:    filepath.Join(".claude", "skills", sk.Name, "SKILL.md"),
+			Mode:    target.ModeFile,
+			Content: content,
+		})
+		// Sibling asset files copy through verbatim.
+		assets, err := target.CopySkillAssets(sk, filepath.Join(".claude", "skills", sk.Name))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, assets...)
+	}
+
+	// Commands → .claude/commands/<name>.md.
+	for _, c := range s.Commands {
+		if !c.HasTarget(name) {
+			continue
+		}
+		content, err := renderSlashPrimitive(c, displayName, name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, target.Artifact{
+			Path:    filepath.Join(".claude", "commands", c.Name+".md"),
+			Mode:    target.ModeFile,
+			Content: content,
+		})
+	}
+
+	// Agents → .claude/agents/<name>.md.
+	for _, a := range s.Agents {
+		if !a.HasTarget(name) {
+			continue
+		}
+		content, err := renderSlashPrimitive(a, displayName, name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, target.Artifact{
+			Path:    filepath.Join(".claude", "agents", a.Name+".md"),
+			Mode:    target.ModeFile,
+			Content: content,
+		})
+	}
+
+	return out, nil
+}
+
+// renderSkill produces a SKILL.md for Claude Code. The output is a markdown
+// file with YAML frontmatter containing name + description plus any
+// per-target passthrough fields the source supplied via a `claude:` block.
+func renderSkill(p source.Primitive, displayName, targetName string) (string, error) {
+	fields := []render.Field{
+		{Key: "name", Value: p.Name},
+		{Key: "description", Value: p.Description},
+	}
+	if over, ok := p.Overrides[name]; ok {
+		fields = render.MergeOverride(fields, over)
+	}
+	fm, err := render.Frontmatter(fields)
+	if err != nil {
+		return "", err
+	}
+	body := strings.TrimRight(render.Body(p.Body, displayName, targetName), "\n")
+	if body == "" {
+		return fm, nil
+	}
+	return fm + "\n" + body + "\n", nil
+}
+
+// renderSlashPrimitive produces a markdown file for a command or agent.
+func renderSlashPrimitive(p source.Primitive, displayName, targetName string) (string, error) {
+	return renderSkill(p, displayName, targetName)
+}

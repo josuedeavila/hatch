@@ -1,0 +1,59 @@
+package target_test
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/matryer/hatch/pkg/source"
+	"github.com/matryer/hatch/pkg/target"
+	"github.com/matryer/is"
+)
+
+func TestCopySkillAssets_CopiesSiblingsExceptSKILL(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	skillDir := filepath.Join(dir, "skills", "review-pr")
+	is.NoErr(os.MkdirAll(filepath.Join(skillDir, "scripts"), 0o755))
+	is.NoErr(os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("skill"), 0o644))
+	is.NoErr(os.WriteFile(filepath.Join(skillDir, "scripts", "review.sh"), []byte("#!/bin/sh\n"), 0o644))
+	is.NoErr(os.WriteFile(filepath.Join(skillDir, "rubric.md"), []byte("criteria"), 0o644))
+
+	sk := source.Primitive{Kind: source.KindSkill, Name: "review-pr", SourcePath: skillDir}
+	arts, err := target.CopySkillAssets(sk, "dest")
+	is.NoErr(err)
+
+	byPath := map[string]string{}
+	for _, a := range arts {
+		byPath[a.Path] = a.Content
+	}
+
+	// SKILL.md is skipped (the target emits its own).
+	_, hasSkillMD := byPath[filepath.Join("dest", "SKILL.md")]
+	is.True(!hasSkillMD)
+
+	is.Equal(byPath[filepath.Join("dest", "rubric.md")], "criteria")
+	is.Equal(byPath[filepath.Join("dest", "scripts", "review.sh")], "#!/bin/sh\n")
+}
+
+func TestCopySkillAssets_SkipsHiddenDirs(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	skillDir := filepath.Join(dir, "review-pr")
+	is.NoErr(os.MkdirAll(filepath.Join(skillDir, ".hidden"), 0o755))
+	is.NoErr(os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("s"), 0o644))
+	is.NoErr(os.WriteFile(filepath.Join(skillDir, ".hidden", "secret.txt"), []byte("x"), 0o644))
+
+	sk := source.Primitive{Kind: source.KindSkill, SourcePath: skillDir}
+	arts, err := target.CopySkillAssets(sk, "dest")
+	is.NoErr(err)
+	is.Equal(len(arts), 0)
+}
+
+func TestCopySkillAssets_NoSourcePathReturnsNil(t *testing.T) {
+	is := is.New(t)
+	sk := source.Primitive{Kind: source.KindSkill}
+	arts, err := target.CopySkillAssets(sk, "dest")
+	is.NoErr(err)
+	is.Equal(len(arts), 0)
+}

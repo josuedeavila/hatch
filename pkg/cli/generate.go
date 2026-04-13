@@ -1,0 +1,161 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/matryer/hatch/pkg/block"
+	"github.com/matryer/hatch/pkg/source"
+	"github.com/matryer/hatch/pkg/target"
+)
+
+func cmdGenerate(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+	fs, root, targetsList := commonFlags("generate", stderr)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	targets, err := selectTargets(available, *targetsList)
+	if err != nil {
+		return err
+	}
+	src, err := source.Load(*root)
+	if err != nil {
+		return err
+	}
+
+	// Collect every target's artifacts before writing so collisions on the
+	// same path (e.g., AGENTS.md is shared by Codex and OpenCode) can be
+	// detected and merged rather than letting the last write silently win.
+	byPath := map[string][]pending{}
+	for _, t := range targets.All() {
+		arts, err := t.Emit(src)
+		if err != nil {
+			return fmt.Errorf("%s: %w", t.Name(), err)
+		}
+		for _, a := range arts {
+			byPath[a.Path] = append(byPath[a.Path], pending{artifact: a, source: t.Name()})
+		}
+	}
+
+	// Write in sorted path order so output is deterministic.
+	paths := make([]string, 0, len(byPath))
+	for p := range byPath {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	for _, p := range paths {
+		group := byPath[p]
+		merged, err := mergeArtifacts(p, group)
+		if err != nil {
+			return err
+		}
+		if err := writeArtifact(*root, merged); err != nil {
+			return fmt.Errorf("%s: %w", p, err)
+		}
+		fmt.Fprintf(stdout, "wrote %s (%s)\n", merged.Path, merged.Mode)
+	}
+	return nil
+}
+
+// pending pairs an artifact with the name of the target that emitted it,
+// so collision error messages can identify the responsible targets.
+type pending struct {
+	artifact target.Artifact
+	source   string
+}
+
+// mergeArtifacts combines multiple artifacts at the same path into a single
+// artifact. Callers that emit to a shared file (e.g., Codex and OpenCode
+// both writing AGENTS.md) end up here. The merge rules:
+//
+//   - Single artifact: return it unchanged.
+//   - Multiple ModeFile artifacts: collision only allowed when every
+//     artifact has byte-identical content; otherwise error (file-owned
+//     paths should not be emitted by more than one target).
+//   - Multiple ModeBlock artifacts: take the union of unique block bodies,
+//     separated by a blank line. This preserves content that any one target
+//     wants included in the shared file.
+//   - Mixed modes at the same path: error (indicates a target bug).
+func mergeArtifacts(path string, group []pending) (target.Artifact, error) {
+	if len(group) == 1 {
+		return group[0].artifact, nil
+	}
+	first := group[0].artifact
+	for _, p := range group[1:] {
+		if p.artifact.Mode != first.Mode {
+			return target.Artifact{}, fmt.Errorf("%s: mixed write modes from targets %s and %s", path, group[0].source, p.source)
+		}
+	}
+	switch first.Mode {
+	case target.ModeFile:
+		for _, p := range group[1:] {
+			if p.artifact.Content != first.Content {
+				return target.Artifact{}, fmt.Errorf("%s: targets %s and %s both emit this file with different content", path, group[0].source, p.source)
+			}
+		}
+		return first, nil
+	case target.ModeBlock:
+		// Collect unique non-empty bodies.
+		seen := map[string]bool{}
+		var bodies []string
+		for _, p := range group {
+			body := strings.TrimRight(p.artifact.Content, "\n")
+			if body == "" || seen[body] {
+				continue
+			}
+			seen[body] = true
+			bodies = append(bodies, body)
+		}
+		// Drop any body that's a substring of another — common case: one
+		// target emits a superset (e.g., Codex adds inlined commands and
+		// agents on top of the same rules OpenCode already has) and we
+		// want to keep only the superset, not duplicate the shared prefix.
+		var kept []string
+		for i, a := range bodies {
+			covered := false
+			for j, b := range bodies {
+				if i == j {
+					continue
+				}
+				if len(b) > len(a) && strings.Contains(b, a) {
+					covered = true
+					break
+				}
+			}
+			if !covered {
+				kept = append(kept, a)
+			}
+		}
+		return target.Artifact{
+			Path:    path,
+			Mode:    target.ModeBlock,
+			Content: strings.Join(kept, "\n\n"),
+		}, nil
+	default:
+		return target.Artifact{}, fmt.Errorf("%s: unknown write mode %q", path, first.Mode)
+	}
+}
+
+// writeArtifact writes a single artifact relative to root. Block-mode
+// artifacts are merged into the target file between hatch markers;
+// file-mode artifacts overwrite the whole file.
+func writeArtifact(root string, a target.Artifact) error {
+	full := filepath.Join(root, a.Path)
+	switch a.Mode {
+	case target.ModeFile:
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(full, []byte(a.Content), 0o644)
+	case target.ModeBlock:
+		return block.Inject(full, block.CurrentMarker, a.Content)
+	default:
+		return fmt.Errorf("unknown write mode %q", a.Mode)
+	}
+}

@@ -1,0 +1,108 @@
+// Package codex emits hatch output for the OpenAI Codex CLI.
+//
+// Codex reads project guidance from AGENTS.md (repo root) and skills from
+// .agents/skills/<name>/SKILL.md (the agentskills.io standard path). Codex
+// sub-agents live in ~/.codex/config.toml (TOML, not markdown) and slash
+// commands are not a first-class primitive; hatch does not emit either.
+// See https://developers.openai.com/codex/ for the full surface.
+package codex
+
+import (
+	"path/filepath"
+	"strings"
+
+	"github.com/matryer/hatch/pkg/render"
+	"github.com/matryer/hatch/pkg/source"
+	"github.com/matryer/hatch/pkg/target"
+)
+
+const (
+	name        = "codex"
+	displayName = "Codex"
+)
+
+// Target is the Codex CLI emitter.
+type Target struct{}
+
+// New returns a Codex target.
+func New() Target { return Target{} }
+
+func (Target) Name() string        { return name }
+func (Target) DisplayName() string { return displayName }
+
+func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
+	var out []target.Artifact
+
+	// Codex has no first-class slash-command or sub-agent primitive, so
+	// hatch inlines commands and agents into AGENTS.md alongside the rules
+	// block. The headings tell Codex how to interpret a user request that
+	// matches one of those entries.
+	sections := nonEmpty(
+		target.RulesBlock(s, name, displayName),
+		target.CommandsBlock(s, name, displayName),
+		target.AgentsBlock(s, name, displayName),
+	)
+	if len(sections) > 0 {
+		out = append(out, target.Artifact{
+			Path:    "AGENTS.md",
+			Mode:    target.ModeBlock,
+			Content: strings.Join(sections, "\n\n"),
+		})
+	}
+
+	// Skills → .agents/skills/<name>/SKILL.md (agentskills.io standard path).
+	for _, sk := range s.Skills {
+		if !sk.HasTarget(name) {
+			continue
+		}
+		content, err := renderSkill(sk, displayName, name)
+		if err != nil {
+			return nil, err
+		}
+		dest := filepath.Join(".agents", "skills", sk.Name)
+		out = append(out, target.Artifact{
+			Path:    filepath.Join(dest, "SKILL.md"),
+			Mode:    target.ModeFile,
+			Content: content,
+		})
+		assets, err := target.CopySkillAssets(sk, dest)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, assets...)
+	}
+
+	// Commands and agents: inlined into AGENTS.md above.
+
+	return out, nil
+}
+
+// nonEmpty returns only the non-empty strings from its arguments.
+func nonEmpty(sections ...string) []string {
+	out := make([]string, 0, len(sections))
+	for _, s := range sections {
+		if strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func renderSkill(p source.Primitive, displayName, targetName string) (string, error) {
+	fields := []render.Field{
+		{Key: "name", Value: p.Name},
+		{Key: "description", Value: p.Description},
+	}
+	if over, ok := p.Overrides[name]; ok {
+		fields = render.MergeOverride(fields, over)
+	}
+	fm, err := render.Frontmatter(fields)
+	if err != nil {
+		return "", err
+	}
+	body := strings.TrimRight(render.Body(p.Body, displayName, targetName), "\n")
+	if body == "" {
+		return fm, nil
+	}
+	return fm + "\n" + body + "\n", nil
+}

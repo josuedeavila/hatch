@@ -1,0 +1,26 @@
+[tools]
+go = "1.26.2"
+
+[tasks.format]
+description = "Format all Go files with go fmt"
+run = "go fmt ./..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./..."
+
+[tasks.build]
+description = "Build the hatch binary into ./bin/hatch"
+run = "go build -o bin/hatch ./cmd/hatch"
+
+[tasks.check]
+description = "Format, vet, and test"
+depends = ["format", "vet", "test"]
+
+[tasks.install]
+description = "Install hatch into GOBIN"
+run = "go install ./cmd/hatch"
