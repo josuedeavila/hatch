@@ -29,9 +29,15 @@ func allTargets() *target.Set {
 
 // invoke runs the CLI with the given argv and returns stdout, stderr.
 func invoke(t *testing.T, args ...string) (string, string, error) {
+	return invokeWithStdin(t, "", args...)
+}
+
+// invokeWithStdin is invoke's stdin-aware variant — used by tests that
+// drive an interactive subcommand (currently only `hatch new`).
+func invokeWithStdin(t *testing.T, stdin string, args ...string) (string, string, error) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	err := cli.Run(context.Background(), "test", allTargets(), append([]string{"hatch"}, args...), &stdout, &stderr)
+	err := cli.Run(context.Background(), "test", allTargets(), append([]string{"hatch"}, args...), strings.NewReader(stdin), &stdout, &stderr)
 	return stdout.String(), stderr.String(), err
 }
 

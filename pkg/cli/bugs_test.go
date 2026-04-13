@@ -21,7 +21,7 @@ func TestBug_InitOutputIsDeterministic(t *testing.T) {
 	run := func() []string {
 		dir := t.TempDir()
 		var stdout, stderr bytes.Buffer
-		err := cli.Run(ctx, "test", allTargets(), []string{"hatch", "init", "-C", dir}, &stdout, &stderr)
+		err := cli.Run(ctx, "test", allTargets(), []string{"hatch", "init", "-C", dir}, strings.NewReader(""), &stdout, &stderr)
 		is.NoErr(err)
 		return extractCreatedSuffixes(stdout.String(), dir)
 	}

@@ -15,7 +15,7 @@ import (
 func TestRun_Version(t *testing.T) {
 	is := is.New(t)
 	var stdout, stderr bytes.Buffer
-	err := run(context.Background(), []string{"hatch", "version"}, &stdout, &stderr)
+	err := run(context.Background(), []string{"hatch", "version"}, strings.NewReader(""), &stdout, &stderr)
 	is.NoErr(err)
 	is.True(strings.Contains(stdout.String(), "dev"))
 }
@@ -23,7 +23,7 @@ func TestRun_Version(t *testing.T) {
 func TestRun_Help(t *testing.T) {
 	is := is.New(t)
 	var stdout, stderr bytes.Buffer
-	err := run(context.Background(), []string{"hatch", "help"}, &stdout, &stderr)
+	err := run(context.Background(), []string{"hatch", "help"}, strings.NewReader(""), &stdout, &stderr)
 	is.NoErr(err)
 	is.True(strings.Contains(stdout.String(), "Registered targets"))
 	is.True(strings.Contains(stdout.String(), "claude"))

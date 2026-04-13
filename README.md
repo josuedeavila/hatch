@@ -22,15 +22,33 @@ mise run install
 ## Quick start
 
 ```
-hatch init        # scaffold .hatch/ with one example of each primitive
-hatch generate    # write all target files
-hatch list        # dry-run; show what would be written
-hatch clean       # remove everything hatch generated
+hatch init                     # scaffold .hatch/ with one example of each primitive
+hatch new <kind> [title]       # create one new source file (rule, skill, command, agent)
+hatch generate                 # write all target files
+hatch list                     # dry-run; show what would be written
+hatch clean                    # remove everything hatch generated
 ```
 
-Every subcommand accepts `-C dir` to operate on a different directory and
-`-targets list` (comma-separated) to narrow the set of agents to generate
-for. `hatch gen` is an alias for `hatch generate`.
+`hatch new` takes the primitive kind and an optional title:
+
+```
+$ hatch new rule "Always write tests"
+created .hatch/rules/always-write-tests.md
+edit the file, then run `hatch generate` to write the output files.
+
+$ hatch new rule
+rule name: Always write tests
+created .hatch/rules/always-write-tests.md
+...
+```
+
+The title is slugged into a filesystem-safe name (lowercase, hyphens,
+truncated to 60 characters). `hatch new skill "..."` creates a skill
+directory with a `SKILL.md` inside it, ready for sibling assets.
+
+Every subcommand accepts `-C dir` to operate on a different directory.
+`generate`, `list`, and `clean` also accept `-targets list` (comma-separated)
+to narrow the set of agents. `hatch gen` is an alias for `hatch generate`.
 
 ## Source layout
 

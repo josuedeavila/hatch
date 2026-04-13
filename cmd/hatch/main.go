@@ -33,7 +33,7 @@ var version = "dev"
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	if err := run(ctx, os.Args, os.Stdout, os.Stderr); err != nil {
+	if err := run(ctx, os.Args, os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintf(os.Stderr, "hatch: %s\n", err)
 		os.Exit(1)
 	}
@@ -41,12 +41,12 @@ func main() {
 
 // run is the testable entry point. It takes its dependencies explicitly so
 // tests can drive the CLI with fake args and capture output.
-func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	targets := target.NewSet(
 		claude.New(),
 		codex.New(),
 		copilot.New(),
 		opencode.New(),
 	)
-	return cli.Run(ctx, version, targets, args, stdout, stderr)
+	return cli.Run(ctx, version, targets, args, stdin, stdout, stderr)
 }
