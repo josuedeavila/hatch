@@ -1,4 +1,4 @@
-# hatch
+# 🥚 hatch
 
 Write rules, skills, commands, and sub-agent definitions **once**, generate
 the native files each coding agent expects.
