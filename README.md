@@ -33,22 +33,13 @@ All subcommands operate on the current working directory — `cd` into your
 project first. `gen`, `list`, and `clean` accept `-targets list`
 (comma-separated) to narrow which agents are generated for.
 
-`hatch new` takes the primitive kind and an optional title:
+`hatch new` takes the primitive kind and a title:
 
 ```
 $ hatch new rule "Always write tests"
 created .hatch/rules/always-write-tests.md
 edit the file, then run `hatch gen` to write the output files.
-
-$ hatch new rule
-rule name: Always write tests
-created .hatch/rules/always-write-tests.md
-...
 ```
-
-The title is slugged into a filesystem-safe name (lowercase, hyphens,
-truncated to 60 characters). `hatch new skill "..."` creates a skill
-directory with a `SKILL.md` inside it, ready for sibling assets.
 
 ## Source layout
 
