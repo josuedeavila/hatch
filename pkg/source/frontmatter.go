@@ -10,7 +10,7 @@ import (
 // splitFrontmatter divides a markdown file into its YAML frontmatter (between
 // `---` delimiters at the start) and body. If no frontmatter is present, the
 // whole input is returned as the body. CRLF line endings are normalised to
-// LF before parsing so downstream emission is platform-independent.
+// LF before parsing so generated files are platform-independent.
 func splitFrontmatter(data []byte) (front []byte, body []byte, err error) {
 	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 	sep := []byte("---")

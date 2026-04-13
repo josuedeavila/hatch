@@ -1,4 +1,4 @@
-// Package claude emits hatch output for Anthropic Claude Code.
+// Package claude generates hatch output for Anthropic Claude Code.
 //
 // Claude Code reads project memory from CLAUDE.md, skills from
 // .claude/skills/<name>/SKILL.md, user-invoked slash commands from
@@ -20,7 +20,7 @@ const (
 	displayName = "Claude Code"
 )
 
-// Target is the Claude Code emitter.
+// Target is the Claude Code generator.
 type Target struct{}
 
 // New returns a Claude Code target. Callers pass this into a target.Set in
@@ -30,7 +30,7 @@ func New() Target { return Target{} }
 func (Target) Name() string        { return name }
 func (Target) DisplayName() string { return displayName }
 
-func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
+func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
 
 	// Rules → block inside CLAUDE.md.

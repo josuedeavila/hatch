@@ -59,7 +59,7 @@ func TestRulesBlock_BodyTemplateSubstitution(t *testing.T) {
 	is.True(strings.Contains(out, "Use Claude Code wisely."))
 }
 
-func TestSkillsBlock_EmitsSkillSections(t *testing.T) {
+func TestSkillsBlock_RendersSkillSections(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Skills: []source.Primitive{

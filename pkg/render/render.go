@@ -1,6 +1,6 @@
-// Package render builds the final text content for a hatch emission: YAML
-// frontmatter (deterministically ordered) plus a body with template variables
-// substituted.
+// Package render builds the final text content for a generated file:
+// YAML frontmatter (deterministically ordered) plus a body with template
+// variables substituted.
 package render
 
 import "strings"

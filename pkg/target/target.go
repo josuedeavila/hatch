@@ -1,8 +1,8 @@
 // Package target defines the Target interface and a Set type for managing
 // the collection of targets a hatch invocation knows about. Each coding
-// agent hatch knows how to emit for lives in its own sub-package and is
-// composed explicitly by the caller (typically cmd/hatch/main.go) — there
-// are no init-time side effects.
+// agent hatch knows how to generate files for lives in its own sub-package
+// and is composed explicitly by the caller (typically cmd/hatch/main.go) —
+// there are no init-time side effects.
 package target
 
 import (
@@ -41,8 +41,8 @@ type Target interface {
 	Name() string
 	// DisplayName returns the human-readable name, e.g. "Claude Code".
 	DisplayName() string
-	// Emit returns the artifacts hatch should write for this target.
-	Emit(s *source.Source) ([]Artifact, error)
+	// Generate returns the artifacts hatch should write for this target.
+	Generate(s *source.Source) ([]Artifact, error)
 }
 
 // Set is an ordered collection of targets that supports name lookup and

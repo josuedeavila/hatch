@@ -1,4 +1,4 @@
-// Package opencode emits hatch output for OpenCode (sst/opencode).
+// Package opencode generates hatch output for OpenCode (sst/opencode).
 //
 // OpenCode reads rules from AGENTS.md (or CLAUDE.md as a fallback), skills
 // from .opencode/skills/<name>/SKILL.md, agents from .opencode/agents/<name>.md,
@@ -20,7 +20,7 @@ const (
 	displayName = "OpenCode"
 )
 
-// Target is the OpenCode emitter.
+// Target is the OpenCode generator.
 type Target struct{}
 
 // New returns an OpenCode target.
@@ -29,7 +29,7 @@ func New() Target { return Target{} }
 func (Target) Name() string        { return name }
 func (Target) DisplayName() string { return displayName }
 
-func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
+func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
 
 	// Rules → block inside AGENTS.md (shared with Codex; identical content).

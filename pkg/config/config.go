@@ -17,7 +17,7 @@ type Config struct {
 	Output  string   `yaml:"output"`
 }
 
-// DefaultTargets is the full set of targets hatch knows how to emit.
+// DefaultTargets is the full set of targets hatch knows how to generate.
 var DefaultTargets = []string{"claude", "codex", "copilot", "opencode"}
 
 // Load reads `<root>/.hatch/config.yaml`. A missing file is not an error — the

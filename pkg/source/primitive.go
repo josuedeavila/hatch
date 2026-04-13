@@ -1,5 +1,5 @@
-// Package source loads hatch source files from a `.hatch/src/` tree and
-// parses them into primitives (rules, skills, commands, agents).
+// Package source loads hatch source files from a `.hatch/` tree and parses
+// them into primitives (rules, skills, commands, agents).
 package source
 
 import "gopkg.in/yaml.v3"
@@ -29,8 +29,8 @@ type Primitive struct {
 	Overrides   map[string]*yaml.Node
 }
 
-// HasTarget reports whether the primitive should be emitted for the named
-// target. An empty Targets slice means "all targets".
+// HasTarget reports whether the primitive should be generated for the
+// named target. An empty Targets slice means "all targets".
 func (p *Primitive) HasTarget(name string) bool {
 	if len(p.Targets) == 0 {
 		return true

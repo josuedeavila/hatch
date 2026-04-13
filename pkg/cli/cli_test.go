@@ -35,7 +35,7 @@ func invoke(t *testing.T, args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-// scaffoldSource writes a minimal .hatch/src tree with one rule, one skill,
+// scaffoldSource writes a minimal .hatch/ tree with one rule, one skill,
 // one command, and one agent into the given root.
 func scaffoldSource(t *testing.T, root string) {
 	t.Helper()

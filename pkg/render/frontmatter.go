@@ -9,18 +9,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Field is one key/value pair to emit in frontmatter. Value may be a scalar
-// string, a []string, or a *yaml.Node (for passthrough from the source).
+// Field is one key/value pair to render in frontmatter. Value may be a
+// scalar string, a []string, or a *yaml.Node (for passthrough from the
+// source).
 type Field struct {
 	Key   string
 	Value any
 }
 
-// Frontmatter emits a YAML frontmatter block (between `---` delimiters) for
-// the given fields, in the order listed. Keys with nil or empty values are
-// omitted. The output is deterministic and uses LF line endings.
+// Frontmatter renders a YAML frontmatter block (between `---` delimiters)
+// for the given fields, in the order listed. Keys with nil or empty values
+// are omitted. The output is deterministic and uses LF line endings.
 //
-// If fields is empty, returns an empty string — callers should emit no
+// If fields is empty, returns an empty string — callers should write no
 // frontmatter at all in that case.
 func Frontmatter(fields []Field) (string, error) {
 	mapping := &yaml.Node{Kind: yaml.MappingNode}
@@ -78,8 +79,8 @@ func MergeOverride(fields []Field, override *yaml.Node) []Field {
 	return append(fields, extras...)
 }
 
-// toNode converts v to a yaml.Node suitable for emission. Returns (nil, false)
-// when the value is empty and should be omitted from the output.
+// toNode converts v to a yaml.Node suitable for rendering. Returns
+// (nil, false) when the value is empty and should be omitted.
 func toNode(v any) (*yaml.Node, bool) {
 	switch t := v.(type) {
 	case nil:

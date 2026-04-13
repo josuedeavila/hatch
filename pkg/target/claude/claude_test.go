@@ -10,14 +10,14 @@ import (
 	"github.com/matryer/is"
 )
 
-func TestEmit_RulesAsBlockInCLAUDE(t *testing.T) {
+func TestGenerate_RulesAsBlockInCLAUDE(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Rules: []source.Primitive{
 			{Kind: source.KindRule, Name: "coding-style", Body: "Write clean code."},
 		},
 	}
-	arts, err := claude.New().Emit(s)
+	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
 	for i := range arts {
@@ -31,14 +31,14 @@ func TestEmit_RulesAsBlockInCLAUDE(t *testing.T) {
 	is.True(strings.Contains(blk.Content, "Write clean code."))
 }
 
-func TestEmit_ApplyToRuleGetsHeading(t *testing.T) {
+func TestGenerate_ApplyToRuleGetsHeading(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Rules: []source.Primitive{
 			{Kind: source.KindRule, Name: "go-rules", ApplyTo: "**/*.go", Body: "Go body."},
 		},
 	}
-	arts, err := claude.New().Emit(s)
+	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
 	for i := range arts {
@@ -51,7 +51,7 @@ func TestEmit_ApplyToRuleGetsHeading(t *testing.T) {
 	is.True(strings.Contains(blk.Content, "Go body."))
 }
 
-func TestEmit_SkillBecomesFileUnderDotClaude(t *testing.T) {
+func TestGenerate_SkillBecomesFileUnderDotClaude(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Skills: []source.Primitive{{
@@ -61,7 +61,7 @@ func TestEmit_SkillBecomesFileUnderDotClaude(t *testing.T) {
 			Body:        "do stuff\n",
 		}},
 	}
-	arts, err := claude.New().Emit(s)
+	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	var skill *target.Artifact
 	for i := range arts {
@@ -78,7 +78,7 @@ func TestEmit_SkillBecomesFileUnderDotClaude(t *testing.T) {
 	is.True(strings.Contains(skill.Content, "do stuff"))
 }
 
-func TestEmit_CommandBecomesDotClaudeCommand(t *testing.T) {
+func TestGenerate_CommandBecomesDotClaudeCommand(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Commands: []source.Primitive{{
@@ -88,7 +88,7 @@ func TestEmit_CommandBecomesDotClaudeCommand(t *testing.T) {
 			Body:        "body\n",
 		}},
 	}
-	arts, err := claude.New().Emit(s)
+	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	found := false
 	for _, a := range arts {
@@ -100,7 +100,7 @@ func TestEmit_CommandBecomesDotClaudeCommand(t *testing.T) {
 	is.True(found)
 }
 
-func TestEmit_AgentBecomesDotClaudeAgent(t *testing.T) {
+func TestGenerate_AgentBecomesDotClaudeAgent(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Agents: []source.Primitive{{
@@ -110,7 +110,7 @@ func TestEmit_AgentBecomesDotClaudeAgent(t *testing.T) {
 			Body:        "body\n",
 		}},
 	}
-	arts, err := claude.New().Emit(s)
+	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	found := false
 	for _, a := range arts {
@@ -121,7 +121,7 @@ func TestEmit_AgentBecomesDotClaudeAgent(t *testing.T) {
 	is.True(found)
 }
 
-func TestEmit_RespectsTargetsFilter(t *testing.T) {
+func TestGenerate_RespectsTargetsFilter(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Skills: []source.Primitive{{
@@ -132,7 +132,7 @@ func TestEmit_RespectsTargetsFilter(t *testing.T) {
 			Targets:     []string{"opencode"},
 		}},
 	}
-	arts, err := claude.New().Emit(s)
+	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	// The only skill opts out of claude — no artifacts expected.
 	is.Equal(len(arts), 0)

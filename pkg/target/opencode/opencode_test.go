@@ -9,7 +9,7 @@ import (
 	"github.com/matryer/is"
 )
 
-func TestEmit_AllFourPrimitives(t *testing.T) {
+func TestGenerate_AllFourPrimitives(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Rules: []source.Primitive{
@@ -25,7 +25,7 @@ func TestEmit_AllFourPrimitives(t *testing.T) {
 			{Kind: source.KindAgent, Name: "security", Description: "d", Body: "b"},
 		},
 	}
-	arts, err := opencode.New().Emit(s)
+	arts, err := opencode.New().Generate(s)
 	is.NoErr(err)
 
 	paths := make(map[string]target.WriteMode)

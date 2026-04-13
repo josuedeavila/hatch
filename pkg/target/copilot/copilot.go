@@ -1,4 +1,4 @@
-// Package copilot emits hatch output for GitHub Copilot.
+// Package copilot generates hatch output for GitHub Copilot.
 //
 // Copilot reads project instructions from .github/copilot-instructions.md,
 // path-scoped instructions from .github/instructions/<name>.instructions.md
@@ -23,7 +23,7 @@ const (
 	displayName = "GitHub Copilot"
 )
 
-// Target is the Copilot emitter.
+// Target is the Copilot generator.
 type Target struct{}
 
 // New returns a Copilot target.
@@ -32,7 +32,7 @@ func New() Target { return Target{} }
 func (Target) Name() string        { return name }
 func (Target) DisplayName() string { return displayName }
 
-func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
+func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
 
 	// Rules without applyTo and skills → combined block inside
@@ -111,7 +111,7 @@ func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
 }
 
 // unscopedRulesBlock returns rule bodies concatenated as markdown for rules
-// that do NOT have an `applyTo` glob. Path-scoped rules are emitted as
+// that do NOT have an `applyTo` glob. Path-scoped rules are generated as
 // separate `.github/instructions/` files instead of being inlined.
 func unscopedRulesBlock(s *source.Source, targetName, displayName string) string {
 	var buf strings.Builder

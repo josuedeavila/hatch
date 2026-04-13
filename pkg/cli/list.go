@@ -23,13 +23,13 @@ func cmdList(_ context.Context, available *target.Set, args []string, stdout, st
 		return err
 	}
 	for _, t := range targets.All() {
-		arts, err := t.Emit(src)
+		arts, err := t.Generate(src)
 		if err != nil {
 			return fmt.Errorf("%s: %w", t.Name(), err)
 		}
 		fmt.Fprintf(stdout, "%s (%s):\n", t.DisplayName(), t.Name())
 		if len(arts) == 0 {
-			fmt.Fprintln(stdout, "  (nothing to emit)")
+			fmt.Fprintln(stdout, "  (nothing to generate)")
 			continue
 		}
 		for _, a := range arts {

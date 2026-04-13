@@ -25,7 +25,7 @@ func TestCodex_InlinesCommandsIntoAGENTSMd(t *testing.T) {
 			Body:        "Summarise the staged diff and create a commit.",
 		}},
 	}
-	arts, err := codex.New().Emit(s)
+	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 
 	var agents *target.Artifact
@@ -34,7 +34,7 @@ func TestCodex_InlinesCommandsIntoAGENTSMd(t *testing.T) {
 			agents = &arts[i]
 		}
 	}
-	is.True(agents != nil) // AGENTS.md must be emitted
+	is.True(agents != nil) // AGENTS.md must be generated
 	is.Equal(agents.Mode, target.ModeBlock)
 	is.True(strings.Contains(agents.Content, "commit"))
 	is.True(strings.Contains(agents.Content, "Commit current changes."))
@@ -51,7 +51,7 @@ func TestCodex_InlinesAgentsIntoAGENTSMd(t *testing.T) {
 			Body:        "Focus on OWASP Top 10.",
 		}},
 	}
-	arts, err := codex.New().Emit(s)
+	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 
 	var agents *target.Artifact
@@ -79,7 +79,7 @@ func TestCodex_RulesCommandsAgentsCombinedInOneBlock(t *testing.T) {
 			Kind: source.KindAgent, Name: "sec", Description: "d", Body: "AGENT BODY",
 		}},
 	}
-	arts, err := codex.New().Emit(s)
+	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 
 	var agents *target.Artifact
@@ -105,7 +105,7 @@ func TestCodex_CommandsRespectTargetsFilter(t *testing.T) {
 			Targets:     []string{"opencode"},
 		}},
 	}
-	arts, err := codex.New().Emit(s)
+	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 	for _, a := range arts {
 		is.True(!strings.Contains(a.Content, "HIDDEN FROM CODEX"))

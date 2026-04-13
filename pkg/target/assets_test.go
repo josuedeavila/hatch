@@ -28,7 +28,7 @@ func TestCopySkillAssets_CopiesSiblingsExceptSKILL(t *testing.T) {
 		byPath[a.Path] = a.Content
 	}
 
-	// SKILL.md is skipped (the target emits its own).
+	// SKILL.md is skipped (the target generates its own).
 	_, hasSkillMD := byPath[filepath.Join("dest", "SKILL.md")]
 	is.True(!hasSkillMD)
 

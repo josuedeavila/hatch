@@ -30,7 +30,7 @@ func cmdClean(_ context.Context, available *target.Set, args []string, stdout, s
 	}
 
 	for _, t := range targets.All() {
-		arts, err := t.Emit(src)
+		arts, err := t.Generate(src)
 		if err != nil {
 			return fmt.Errorf("%s: %w", t.Name(), err)
 		}

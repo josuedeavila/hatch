@@ -10,14 +10,14 @@ import (
 	"github.com/matryer/is"
 )
 
-func TestEmit_UnscopedRulesBlockInCopilotInstructions(t *testing.T) {
+func TestGenerate_UnscopedRulesBlockInCopilotInstructions(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Rules: []source.Primitive{
 			{Kind: source.KindRule, Name: "style", Body: "unscoped body"},
 		},
 	}
-	arts, err := copilot.New().Emit(s)
+	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
 	for i := range arts {
@@ -30,7 +30,7 @@ func TestEmit_UnscopedRulesBlockInCopilotInstructions(t *testing.T) {
 	is.True(strings.Contains(blk.Content, "unscoped body"))
 }
 
-func TestEmit_ScopedRuleBecomesInstructionsFile(t *testing.T) {
+func TestGenerate_ScopedRuleBecomesInstructionsFile(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Rules: []source.Primitive{{
@@ -40,7 +40,7 @@ func TestEmit_ScopedRuleBecomesInstructionsFile(t *testing.T) {
 			Body:    "Go-only rule",
 		}},
 	}
-	arts, err := copilot.New().Emit(s)
+	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	var inst *target.Artifact
 	for i := range arts {
@@ -55,7 +55,7 @@ func TestEmit_ScopedRuleBecomesInstructionsFile(t *testing.T) {
 	is.True(strings.Contains(inst.Content, "Go-only rule"))
 }
 
-func TestEmit_SkillInlinedIntoCopilotInstructionsBlock(t *testing.T) {
+func TestGenerate_SkillInlinedIntoCopilotInstructionsBlock(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Skills: []source.Primitive{{
@@ -65,7 +65,7 @@ func TestEmit_SkillInlinedIntoCopilotInstructionsBlock(t *testing.T) {
 			Body:        "skill body",
 		}},
 	}
-	arts, err := copilot.New().Emit(s)
+	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
 	for i := range arts {
@@ -78,7 +78,7 @@ func TestEmit_SkillInlinedIntoCopilotInstructionsBlock(t *testing.T) {
 	is.True(strings.Contains(blk.Content, "skill body"))
 }
 
-func TestEmit_CommandBecomesPromptFile(t *testing.T) {
+func TestGenerate_CommandBecomesPromptFile(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Commands: []source.Primitive{{
@@ -88,7 +88,7 @@ func TestEmit_CommandBecomesPromptFile(t *testing.T) {
 			Body:        "body",
 		}},
 	}
-	arts, err := copilot.New().Emit(s)
+	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	found := false
 	for _, a := range arts {
@@ -99,7 +99,7 @@ func TestEmit_CommandBecomesPromptFile(t *testing.T) {
 	is.True(found)
 }
 
-func TestEmit_AgentBecomesAgentFile(t *testing.T) {
+func TestGenerate_AgentBecomesAgentFile(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{
 		Agents: []source.Primitive{{
@@ -109,7 +109,7 @@ func TestEmit_AgentBecomesAgentFile(t *testing.T) {
 			Body:        "body",
 		}},
 	}
-	arts, err := copilot.New().Emit(s)
+	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	found := false
 	for _, a := range arts {

@@ -14,9 +14,9 @@ type stubTarget struct {
 	display string
 }
 
-func (s stubTarget) Name() string                                   { return s.name }
-func (s stubTarget) DisplayName() string                            { return s.display }
-func (s stubTarget) Emit(*source.Source) ([]target.Artifact, error) { return nil, nil }
+func (s stubTarget) Name() string                                       { return s.name }
+func (s stubTarget) DisplayName() string                                { return s.display }
+func (s stubTarget) Generate(*source.Source) ([]target.Artifact, error) { return nil, nil }
 
 func TestSet_NamesSorted(t *testing.T) {
 	is := is.New(t)

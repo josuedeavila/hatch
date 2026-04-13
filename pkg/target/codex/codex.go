@@ -1,10 +1,10 @@
-// Package codex emits hatch output for the OpenAI Codex CLI.
+// Package codex generates hatch output for the OpenAI Codex CLI.
 //
 // Codex reads project guidance from AGENTS.md (repo root) and skills from
 // .agents/skills/<name>/SKILL.md (the agentskills.io standard path). Codex
 // sub-agents live in ~/.codex/config.toml (TOML, not markdown) and slash
-// commands are not a first-class primitive; hatch does not emit either.
-// See https://developers.openai.com/codex/ for the full surface.
+// commands are not a first-class primitive; hatch does not generate files
+// for those. See https://developers.openai.com/codex/ for the full surface.
 package codex
 
 import (
@@ -21,7 +21,7 @@ const (
 	displayName = "Codex"
 )
 
-// Target is the Codex CLI emitter.
+// Target is the Codex CLI generator.
 type Target struct{}
 
 // New returns a Codex target.
@@ -30,7 +30,7 @@ func New() Target { return Target{} }
 func (Target) Name() string        { return name }
 func (Target) DisplayName() string { return displayName }
 
-func (t Target) Emit(s *source.Source) ([]target.Artifact, error) {
+func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
 
 	// Codex has no first-class slash-command or sub-agent primitive, so
