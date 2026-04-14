@@ -117,7 +117,8 @@ with the agent's display name (e.g., "Claude Code") and short name (e.g.,
 hatch init                   # scaffold .hatch/ with one example of each primitive
 hatch new <kind> <title>     # create a new source file
 hatch gen                    # regenerate all target files
-hatch gen -targets claude    # regenerate only one agent's files
+hatch gen claude             # regenerate only claude (positional target arg)
+hatch gen claude codex       # regenerate claude and codex
 hatch list                   # dry-run: show what gen would write
 hatch clean                  # remove everything hatch generated
 ` + "```" + `

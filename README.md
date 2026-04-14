@@ -39,8 +39,15 @@ hatch meta skill > .claude/skills/hatch/SKILL.md
 ```
 
 All subcommands operate on the current working directory — `cd` into your
-project first. `gen`, `list`, and `clean` accept `-targets list`
-(comma-separated) to narrow which agents are generated for.
+project first. `gen`, `list`, and `clean` accept positional target names
+to narrow which agents are generated for:
+
+```
+hatch gen                    # every target
+hatch gen claude             # only claude
+hatch gen claude codex       # claude and codex
+hatch gen -targets claude    # equivalent flag form, for scripts
+```
 
 `hatch new` takes the primitive kind and a title:
 

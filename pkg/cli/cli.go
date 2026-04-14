@@ -57,14 +57,20 @@ Generate rules, skills, commands, and sub-agent definitions for multiple
 coding agents from a single source at .hatch/.
 
 Usage:
-  hatch gen  [-targets list]    write all target outputs
-  hatch list [-targets list]    dry-run; print what would be written
-  hatch clean [-targets list]   remove generated outputs
+  hatch gen   [targets...]      write all target outputs (or only those named)
+  hatch list  [targets...]      dry-run; print what would be written
+  hatch clean [targets...]      remove generated outputs
   hatch init                    scaffold .hatch/
   hatch new <kind> [title]      create a new source file
   hatch meta skill              print a SKILL.md teaching a coding agent about hatch
   hatch version                 print version and exit
   hatch help                    this message
+
+Target selection:
+  hatch gen                     all targets (default)
+  hatch gen claude              only claude
+  hatch gen claude codex        claude and codex
+  hatch gen -targets claude     equivalent -targets flag form
 
 Flags:
   -targets list  comma-separated target names (default: all)
@@ -82,8 +88,8 @@ func commonFlags(name string, stderr io.Writer) (*flag.FlagSet, *string) {
 	return fs, targetsList
 }
 
-// selectTargets resolves the `-targets` flag value against the available set.
-// An empty value means "all".
+// selectTargets resolves a comma-separated target-name list against the
+// available set. An empty value means "all".
 func selectTargets(available *target.Set, list string) (*target.Set, error) {
 	list = strings.TrimSpace(list)
 	if list == "" {
@@ -97,4 +103,14 @@ func selectTargets(available *target.Set, list string) (*target.Set, error) {
 		}
 	}
 	return available.Select(names)
+}
+
+// mergeTargetArgs combines positional target-name arguments with the
+// `-targets list` flag value. Positional args take precedence when both
+// are supplied. Returns a comma-separated list ready for selectTargets.
+func mergeTargetArgs(positional []string, flagValue string) string {
+	if len(positional) > 0 {
+		return strings.Join(positional, ",")
+	}
+	return flagValue
 }

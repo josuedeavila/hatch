@@ -16,6 +16,10 @@ import (
 
 // cmdGen is the implementation of `hatch gen`. It always operates on the
 // current working directory.
+//
+// Target selection can come from two places: the `-targets list` flag or
+// positional arguments (e.g. `hatch gen claude codex`). Positional args
+// override the flag when both are supplied.
 func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	fs, targetsList := commonFlags("gen", stderr)
 	if err := fs.Parse(args); err != nil {
@@ -24,7 +28,7 @@ func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, s
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	targets, err := selectTargets(available, *targetsList)
+	targets, err := selectTargets(available, mergeTargetArgs(fs.Args(), *targetsList))
 	if err != nil {
 		return err
 	}
