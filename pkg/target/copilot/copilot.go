@@ -80,7 +80,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if !c.HasTarget(name) {
 			continue
 		}
-		content, err := renderSlashPrimitive(c, displayName, name, nil)
+		content, err := renderSlashPrimitive(c, displayName, name)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if !a.HasTarget(name) {
 			continue
 		}
-		content, err := renderSlashPrimitive(a, displayName, name, nil)
+		content, err := renderSlashPrimitive(a, displayName, name)
 		if err != nil {
 			return nil, err
 		}
@@ -154,7 +154,7 @@ func renderScopedRule(p source.Primitive, displayName, targetName string) (strin
 	return fm + "\n" + body + "\n", nil
 }
 
-func renderSlashPrimitive(p source.Primitive, displayName, targetName string, _ any) (string, error) {
+func renderSlashPrimitive(p source.Primitive, displayName, targetName string) (string, error) {
 	fields := []render.Field{
 		{Key: "description", Value: p.Description},
 	}

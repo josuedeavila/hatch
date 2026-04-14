@@ -68,7 +68,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if !c.HasTarget(name) {
 			continue
 		}
-		content, err := renderSlashPrimitive(c, displayName, name)
+		content, err := renderSkill(c, displayName, name)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if !a.HasTarget(name) {
 			continue
 		}
-		content, err := renderSlashPrimitive(a, displayName, name)
+		content, err := renderSkill(a, displayName, name)
 		if err != nil {
 			return nil, err
 		}
@@ -98,6 +98,9 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	return out, nil
 }
 
+// renderSkill produces a markdown file with YAML frontmatter (name +
+// description + per-target overrides). The same shape is reused for
+// OpenCode's commands and agents.
 func renderSkill(p source.Primitive, displayName, targetName string) (string, error) {
 	fields := []render.Field{
 		{Key: "name", Value: p.Name},
@@ -115,8 +118,4 @@ func renderSkill(p source.Primitive, displayName, targetName string) (string, er
 		return fm, nil
 	}
 	return fm + "\n" + body + "\n", nil
-}
-
-func renderSlashPrimitive(p source.Primitive, displayName, targetName string) (string, error) {
-	return renderSkill(p, displayName, targetName)
 }
