@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -39,5 +40,91 @@ func TestMeta_MissingSubcommandErrors(t *testing.T) {
 func TestMeta_UnknownSubcommandErrors(t *testing.T) {
 	is := is.New(t)
 	_, _, err := invoke(t, "meta", "nonsense")
+	is.True(err != nil)
+}
+
+func TestMeta_SkillWritesToClaudeSkillsDir(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	stdout, _, err := invoke(t, "meta", "skill", "-targets", "claude")
+	is.NoErr(err)
+	is.True(strings.Contains(stdout, ".claude/skills/hatch/SKILL.md"))
+
+	body, err := os.ReadFile(".claude/skills/hatch/SKILL.md")
+	is.NoErr(err)
+	s := string(body)
+	is.True(strings.HasPrefix(s, "---\n"))
+	is.True(strings.Contains(s, "name: hatch"))
+	is.True(strings.Contains(s, "description:"))
+	is.True(strings.Contains(s, "hatch gen"))
+	is.True(strings.Contains(s, "Never edit generated files"))
+}
+
+func TestMeta_SkillWritesToCodexAgentskillsPath(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "meta", "skill", "-targets", "codex")
+	is.NoErr(err)
+	// Codex uses the agentskills.io standard path.
+	_, err = os.Stat(".agents/skills/hatch/SKILL.md")
+	is.NoErr(err)
+}
+
+func TestMeta_SkillWritesToOpencodeSkillsDir(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "meta", "skill", "-targets", "opencode")
+	is.NoErr(err)
+	_, err = os.Stat(".opencode/skills/hatch/SKILL.md")
+	is.NoErr(err)
+}
+
+func TestMeta_SkillMultipleTargets(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "meta", "skill", "-targets", "claude,codex,opencode")
+	is.NoErr(err)
+	for _, path := range []string{
+		".claude/skills/hatch/SKILL.md",
+		".agents/skills/hatch/SKILL.md",
+		".opencode/skills/hatch/SKILL.md",
+	} {
+		_, err := os.Stat(path)
+		is.NoErr(err)
+	}
+}
+
+func TestMeta_SkillCopilotInlinesIntoInstructions(t *testing.T) {
+	// Copilot has no native skill primitive; hatch inlines skill bodies
+	// into .github/copilot-instructions.md. Meta skill should reach
+	// Copilot via that same path.
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "meta", "skill", "-targets", "copilot")
+	is.NoErr(err)
+
+	body, err := os.ReadFile(".github/copilot-instructions.md")
+	is.NoErr(err)
+	s := string(body)
+	is.True(strings.Contains(s, "<!-- hatch:begin v1 -->"))
+	is.True(strings.Contains(s, "hatch"))
+	is.True(strings.Contains(s, "Never edit generated files"))
+}
+
+func TestMeta_SkillUnknownTargetErrors(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+	_, _, err := invoke(t, "meta", "skill", "-targets", "nosuch")
 	is.True(err != nil)
 }

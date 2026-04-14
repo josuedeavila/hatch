@@ -23,7 +23,7 @@ func cmdClean(ctx context.Context, available *target.Set, args []string, stdout,
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	targets, err := selectTargets(available, mergeTargetArgs(fs.Args(), *targetsList))
+	targets, err := selectTargets(available, *targetsList)
 	if err != nil {
 		return err
 	}

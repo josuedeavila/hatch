@@ -3,41 +3,94 @@ package cli
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
+
+	"github.com/matryer/hatch/pkg/source"
+	"github.com/matryer/hatch/pkg/target"
 )
 
-// cmdMeta dispatches the `hatch meta` family of subcommands. These write
-// self-describing documents to stdout so users can pipe them into a skills
-// directory, a docs file, or the clipboard.
+// cmdMeta dispatches the `hatch meta` family of subcommands. These emit a
+// self-describing document that teaches a coding agent about hatch itself.
 //
 // Currently supported:
 //
-//	hatch meta skill    # print a SKILL.md teaching a coding agent about hatch
-func cmdMeta(_ context.Context, args []string, stdout, stderr io.Writer) error {
+//	hatch meta skill [-targets list]
+//
+// With no targets, the SKILL.md is written to stdout. With `-targets`,
+// hatch synthesises a Source containing a single skill (the meta skill)
+// and runs each named target's Generate, writing the result to the
+// target's native skill location (e.g. `.claude/skills/hatch/SKILL.md`
+// for claude, `.agents/skills/hatch/SKILL.md` for codex, etc.).
+func cmdMeta(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("hatch meta: missing subcommand (want: skill)")
 	}
-	sub := args[0]
+	sub, rest := args[0], args[1:]
 	switch sub {
 	case "skill":
-		_, err := io.WriteString(stdout, metaSkillDoc)
-		return err
+		return cmdMetaSkill(ctx, available, rest, stdout, stderr)
 	default:
 		return fmt.Errorf("hatch meta: unknown subcommand %q (want: skill)", sub)
 	}
 }
 
-// metaSkillDoc is an agentskills.io-compatible SKILL.md that teaches a
-// coding agent how to use hatch in this project. It's intentionally
-// comprehensive: installing, the four primitives, source layout, the
-// `hatch new` helper, frontmatter fields, and the edit-regen workflow.
-const metaSkillDoc = `---
-name: hatch
-description: Authoring rules, skills, commands, and sub-agents for this project via hatch — write once, generate for every coding agent.
----
+func cmdMetaSkill(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("meta skill", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	targetsList := fs.String("targets", "", "comma-separated target names; omit to print to stdout")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 
-# hatch
+	// No targets → print the full SKILL.md to stdout (pipe-friendly).
+	if *targetsList == "" {
+		_, err := io.WriteString(stdout, metaSkillDoc)
+		return err
+	}
+
+	targets, err := selectTargets(available, *targetsList)
+	if err != nil {
+		return err
+	}
+
+	// Synthesise a source tree containing just the meta skill, then let
+	// each target's Generate drop it into its native skill location.
+	src := &source.Source{
+		Skills: []source.Primitive{{
+			Kind:        source.KindSkill,
+			Name:        metaSkillName,
+			Description: metaSkillDescription,
+			Body:        metaSkillBody,
+		}},
+	}
+	for _, t := range targets.All() {
+		arts, err := t.Generate(src)
+		if err != nil {
+			return fmt.Errorf("%s: %w", t.Name(), err)
+		}
+		for _, a := range arts {
+			if err := writeArtifact(a); err != nil {
+				return fmt.Errorf("%s: %s: %w", t.Name(), a.Path, err)
+			}
+			fmt.Fprintf(stdout, "wrote %s (%s)\n", a.Path, a.Mode)
+		}
+	}
+	return nil
+}
+
+// metaSkillName, metaSkillDescription, metaSkillBody are the three pieces
+// that together make up the SKILL.md printed or written for `hatch meta
+// skill`. Keeping them separate lets us either serialise the full file
+// (for stdout) or hand them to a target's Generate (for target-native
+// placement) without reparsing.
+const (
+	metaSkillName        = "hatch"
+	metaSkillDescription = "Authoring rules, skills, commands, and sub-agents for this project via hatch — write once, generate for every coding agent."
+)
+
+const metaSkillBody = `# hatch
 
 This project uses **hatch** (` + "`github.com/matryer/hatch`" + `) to keep a single
 source of truth for the guidance it sends to coding agents. Hatch reads a
@@ -114,13 +167,13 @@ with the agent's display name (e.g., "Claude Code") and short name (e.g.,
 ## Useful commands
 
 ` + "```" + `
-hatch init                   # scaffold .hatch/ with one example of each primitive
-hatch new <kind> <title>     # create a new source file
-hatch gen                    # regenerate all target files
-hatch gen claude             # regenerate only claude (positional target arg)
-hatch gen claude codex       # regenerate claude and codex
-hatch list                   # dry-run: show what gen would write
-hatch clean                  # remove everything hatch generated
+hatch init                        # scaffold .hatch/ with one example of each primitive
+hatch new <kind> <title>          # create a new source file
+hatch gen                         # regenerate all target files
+hatch gen -targets claude         # regenerate only one agent's files
+hatch list                        # dry-run: show what gen would write
+hatch clean                       # remove everything hatch generated
+hatch meta skill -targets claude  # drop this SKILL.md into every target's skills dir
 ` + "```" + `
 
 ## Never edit generated files
@@ -136,3 +189,12 @@ For the block-injected files (` + "`CLAUDE.md`" + `, ` + "`AGENTS.md`" + `,
 ` + "`<!-- hatch:begin v1 -->`" + ` and ` + "`<!-- hatch:end v1 -->`" + ` markers — surrounding
 content you have written by hand is preserved across regeneration.
 `
+
+// metaSkillDoc is the full SKILL.md (frontmatter + body) emitted for
+// `hatch meta skill` with no targets. Assembled from the constants above
+// at package init so there's a single source of truth for the body.
+const metaSkillDoc = "---\n" +
+	"name: " + metaSkillName + "\n" +
+	"description: " + metaSkillDescription + "\n" +
+	"---\n\n" +
+	metaSkillBody

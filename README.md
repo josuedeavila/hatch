@@ -30,23 +30,25 @@ hatch clean                    # remove everything hatch generated
 hatch meta skill               # print a SKILL.md teaching a coding agent about hatch
 ```
 
-`hatch meta skill` writes to stdout, so you can pipe it straight into your
-project's skills directory to teach a coding agent how to extend the
-hatch source tree itself:
+`hatch meta skill` emits a SKILL.md that teaches a coding agent how to
+extend the hatch source tree itself. With no flags it writes to stdout;
+with `-targets` it drops the skill straight into each named target's
+native skill location:
 
 ```
-hatch meta skill > .claude/skills/hatch/SKILL.md
+hatch meta skill                              # stdout
+hatch meta skill -targets claude              # writes .claude/skills/hatch/SKILL.md
+hatch meta skill -targets claude,codex,opencode
 ```
 
 All subcommands operate on the current working directory — `cd` into your
-project first. `gen`, `list`, and `clean` accept positional target names
-to narrow which agents are generated for:
+project first. `gen`, `list`, `clean`, and `meta skill` accept a
+`-targets list` flag (comma-separated) to narrow which agents are touched:
 
 ```
-hatch gen                    # every target
-hatch gen claude             # only claude
-hatch gen claude codex       # claude and codex
-hatch gen -targets claude    # equivalent flag form, for scripts
+hatch gen                         # every target
+hatch gen -targets claude         # only claude
+hatch gen -targets claude,codex   # claude and codex
 ```
 
 `hatch new` takes the primitive kind and a title:

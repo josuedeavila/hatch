@@ -2,7 +2,8 @@
 // for files that may contain user-authored content around a hatch-generated
 // section (CLAUDE.md, AGENTS.md, .github/copilot-instructions.md).
 //
-// A hatch-managed block is delimited by HTML comments:
+// A hatch-managed block is delimited by HTML comments that must appear on
+// lines of their own:
 //
 //	<!-- hatch:begin v1 -->
 //	...hatch-generated content...
@@ -10,7 +11,8 @@
 //
 // The `v1` token versions the marker so older blocks can be recognized and
 // replaced. Everything outside the markers is user-authored and is never
-// touched by hatch.
+// touched by hatch. Mentions of the marker text inside a paragraph or a
+// code fence are not treated as markers — only whole-line matches count.
 package block
 
 import (
@@ -41,10 +43,11 @@ func Render(marker, content string) string {
 // in-place. If the file exists without a block, the block is appended. If
 // the file does not exist, it is created with just the block.
 //
-// Content that embeds the literal begin/end marker text is rejected: such
-// content would collide with the block boundaries on subsequent rebuilds
-// and corrupt the file. Callers that legitimately need to document hatch
-// markers should escape them before passing the content to Inject.
+// Content that embeds the literal begin/end marker text on a line of its
+// own is rejected: such content would collide with the block boundaries on
+// subsequent rebuilds and corrupt the file. Inline mentions (inside a
+// paragraph or a code fence) are fine — hatch only recognises whole-line
+// markers.
 func Inject(path, marker, content string) error {
 	if err := validateContent(content); err != nil {
 		return err
@@ -66,13 +69,18 @@ func Inject(path, marker, content string) error {
 	return os.WriteFile(path, []byte(out), 0o644)
 }
 
-// validateContent refuses content that would break block boundaries. Any
-// occurrence of the literal marker prefix (without caring about the version
-// token) would cause a later Inject/Strip to find the wrong boundary.
+// validateContent refuses content where a line is, verbatim, a hatch
+// marker. Inline mentions inside paragraphs or code fences are fine — the
+// parser ignores them because it only matches whole lines.
 func validateContent(content string) error {
-	for _, needle := range []string{"<!-- hatch:begin", "<!-- hatch:end"} {
-		if strings.Contains(content, needle) {
-			return fmt.Errorf("content contains hatch marker text %q; would corrupt block boundaries", needle)
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "<!-- hatch:") || !strings.HasSuffix(trimmed, "-->") {
+			continue
+		}
+		kind := trimmed[len("<!-- hatch:"):]
+		if strings.HasPrefix(kind, "begin") || strings.HasPrefix(kind, "end") {
+			return fmt.Errorf("content contains a bare hatch marker line %q; would corrupt block boundaries", trimmed)
 		}
 	}
 	return nil
@@ -86,10 +94,11 @@ func Strip(path, marker string) error {
 }
 
 // replaceBlock swaps any existing hatch block in src (matching marker) with
-// block. If none is found, block is appended with a separating blank line.
+// block. Markers are matched only when they appear on lines of their own.
+// If none is found, block is appended with a separating blank line.
 func replaceBlock(src, marker, block string) string {
 	begin, end := Markers(marker)
-	bi := strings.Index(src, begin)
+	bi := indexMarkerLine(src, 0, begin)
 	if bi < 0 {
 		// No existing block — append.
 		if !strings.HasSuffix(src, "\n") {
@@ -100,16 +109,17 @@ func replaceBlock(src, marker, block string) string {
 		}
 		return src + block
 	}
-	ei := strings.Index(src[bi:], end)
+	ei := indexMarkerLine(src, bi+len(begin), end)
 	if ei < 0 {
-		// Malformed (begin without end); leave the file alone and append.
+		// Malformed (begin line without matching end line); leave the
+		// file alone and append.
 		return src + "\n" + block
 	}
-	ei += bi + len(end)
-	for ei < len(src) && src[ei] == '\n' {
-		ei++
+	endLineEnd := ei + len(end)
+	for endLineEnd < len(src) && src[endLineEnd] == '\n' {
+		endLineEnd++
 	}
-	tail := src[ei:]
+	tail := src[endLineEnd:]
 	head := src[:bi]
 	var buf strings.Builder
 	buf.WriteString(head)
@@ -133,21 +143,20 @@ func stripFile(path, marker string) error {
 	}
 	begin, end := Markers(marker)
 	src := string(data)
-	bi := strings.Index(src, begin)
+	bi := indexMarkerLine(src, 0, begin)
 	if bi < 0 {
 		return nil
 	}
-	ei := strings.Index(src[bi:], end)
+	ei := indexMarkerLine(src, bi+len(begin), end)
 	if ei < 0 {
-		return fmt.Errorf("begin marker without matching end")
+		return fmt.Errorf("begin marker line without matching end marker line")
 	}
-	ei += bi + len(end)
-	for ei < len(src) && src[ei] == '\n' {
-		ei++
+	endLineEnd := ei + len(end)
+	for endLineEnd < len(src) && src[endLineEnd] == '\n' {
+		endLineEnd++
 	}
-	stripped := strings.TrimLeft(src[:bi], "")
-	stripped = strings.TrimRight(stripped, "\n")
-	tail := strings.TrimLeft(src[ei:], "\n")
+	stripped := strings.TrimRight(src[:bi], "\n")
+	tail := strings.TrimLeft(src[endLineEnd:], "\n")
 	var result string
 	switch {
 	case stripped == "" && tail == "":
@@ -160,6 +169,35 @@ func stripFile(path, marker string) error {
 		result = stripped + "\n\n" + tail
 	}
 	return os.WriteFile(path, []byte(result), 0o644)
+}
+
+// indexMarkerLine returns the byte offset in src (at or after `from`) where
+// a line consisting exactly of marker begins, or -1 if no such line exists.
+// A line is "consisting exactly of marker" when the bytes on that line,
+// trimmed of surrounding whitespace, equal marker.
+func indexMarkerLine(src string, from int, marker string) int {
+	offset := from
+	// Move to the start of the line containing offset.
+	for offset > 0 && src[offset-1] != '\n' {
+		offset--
+	}
+	for offset < len(src) {
+		nl := strings.IndexByte(src[offset:], '\n')
+		var line string
+		var next int
+		if nl < 0 {
+			line = src[offset:]
+			next = len(src)
+		} else {
+			line = src[offset : offset+nl]
+			next = offset + nl + 1
+		}
+		if strings.TrimSpace(line) == marker && offset >= from {
+			return offset
+		}
+		offset = next
+	}
+	return -1
 }
 
 func parentDir(path string) string {

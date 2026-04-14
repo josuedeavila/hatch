@@ -14,7 +14,7 @@ func cmdList(_ context.Context, available *target.Set, args []string, stdout, st
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	targets, err := selectTargets(available, mergeTargetArgs(fs.Args(), *targetsList))
+	targets, err := selectTargets(available, *targetsList)
 	if err != nil {
 		return err
 	}

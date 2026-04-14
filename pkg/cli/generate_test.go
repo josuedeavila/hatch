@@ -84,58 +84,6 @@ func TestGen_TargetsFlag(t *testing.T) {
 	is.True(!strings.Contains(stdout, "AGENTS.md"))
 }
 
-func TestGen_PositionalTargetSingle(t *testing.T) {
-	is := is.New(t)
-	dir := t.TempDir()
-	scaffoldSource(t, dir)
-	t.Chdir(dir)
-
-	// `hatch gen claude` should behave like `hatch gen -targets claude`.
-	stdout, _, err := invoke(t, "gen", "claude")
-	is.NoErr(err)
-	is.True(strings.Contains(stdout, "CLAUDE.md"))
-	is.True(!strings.Contains(stdout, "AGENTS.md"))
-	is.True(!strings.Contains(stdout, ".github/"))
-	is.True(!strings.Contains(stdout, ".opencode/"))
-}
-
-func TestGen_PositionalTargetMultiple(t *testing.T) {
-	is := is.New(t)
-	dir := t.TempDir()
-	scaffoldSource(t, dir)
-	t.Chdir(dir)
-
-	stdout, _, err := invoke(t, "gen", "claude", "copilot")
-	is.NoErr(err)
-	is.True(strings.Contains(stdout, "CLAUDE.md"))
-	is.True(strings.Contains(stdout, ".github/"))
-	is.True(!strings.Contains(stdout, "AGENTS.md"))
-	is.True(!strings.Contains(stdout, ".opencode/"))
-}
-
-func TestGen_PositionalTargetUnknownErrors(t *testing.T) {
-	is := is.New(t)
-	dir := t.TempDir()
-	scaffoldSource(t, dir)
-	t.Chdir(dir)
-	_, _, err := invoke(t, "gen", "nosuch")
-	is.True(err != nil)
-}
-
-func TestGen_PositionalArgsOverrideFlag(t *testing.T) {
-	// When both -targets and positional args are supplied, positional
-	// args win.
-	is := is.New(t)
-	dir := t.TempDir()
-	scaffoldSource(t, dir)
-	t.Chdir(dir)
-
-	stdout, _, err := invoke(t, "gen", "-targets", "opencode", "claude")
-	is.NoErr(err)
-	is.True(strings.Contains(stdout, "CLAUDE.md"))
-	is.True(!strings.Contains(stdout, ".opencode/"))
-}
-
 func TestGen_UnknownTargetErrors(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()
