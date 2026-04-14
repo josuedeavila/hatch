@@ -313,7 +313,6 @@ cmd/hatch/main.go                 main binary
 pkg/
   cli/                            public CLI: cli.Run(ctx, ver, targets, args, in, out, err)
   source/                         load .hatch/ into a Source
-  config/                         optional .hatch/config.yaml
   render/                         deterministic YAML frontmatter + body templating
   block/                          hatch-marker block injection and stripping
   target/                         Target interface, Set, shared helpers

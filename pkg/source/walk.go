@@ -10,7 +10,7 @@ import (
 
 // Load walks `<root>/.hatch/` and returns a populated Source. Source
 // primitives live in subdirectories (rules/, skills/, commands/, agents/)
-// directly under `.hatch/`; any other files (e.g. config.yaml) are ignored.
+// directly under `.hatch/`; any other files are ignored.
 func Load(root string) (*Source, error) {
 	srcRoot := filepath.Join(root, ".hatch")
 	info, err := os.Stat(srcRoot)
