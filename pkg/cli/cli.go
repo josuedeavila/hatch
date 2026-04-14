@@ -69,9 +69,6 @@ Usage:
 Flags:
   -targets list  comma-separated target names (default: all)
 
-Flags:
-  -targets list  comma-separated target names (default: all)
-
 Registered targets: %s
 `, version, strings.Join(targets.Names(), ", "))
 }
@@ -83,6 +80,18 @@ func commonFlags(name string, stderr io.Writer) (*flag.FlagSet, *string) {
 	fs.SetOutput(stderr)
 	targetsList := fs.String("targets", "", "comma-separated target names (default: all)")
 	return fs, targetsList
+}
+
+// ensureNoPositional returns an error if any positional arguments remain
+// after fs.Parse. The subcommands that call it don't accept any positional
+// arguments — target selection is `-targets` only — so a stray word like
+// `hatch gen claude` must fail loudly rather than be silently ignored and
+// run against every target.
+func ensureNoPositional(fs *flag.FlagSet, cmd string) error {
+	if fs.NArg() == 0 {
+		return nil
+	}
+	return fmt.Errorf("hatch %s: unexpected argument %q (use -targets to narrow targets)", cmd, fs.Arg(0))
 }
 
 // selectTargets resolves a comma-separated target-name list against the

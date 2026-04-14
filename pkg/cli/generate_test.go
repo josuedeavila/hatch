@@ -93,6 +93,51 @@ func TestGen_UnknownTargetErrors(t *testing.T) {
 	is.True(err != nil)
 }
 
+func TestGen_UnknownTargetInListWritesNothing(t *testing.T) {
+	// When the -targets list mixes a valid target with an unknown one,
+	// the command must fail before touching the filesystem. Nothing is
+	// written — not even the valid target's output.
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "gen", "-targets", "claude,nosuch")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "nosuch"))
+
+	// Claude's file must NOT exist — the error should fire before any
+	// target-level writes.
+	for _, path := range []string{
+		"CLAUDE.md",
+		".claude/skills/review-pr/SKILL.md",
+		"AGENTS.md",
+	} {
+		_, statErr := os.Stat(path)
+		is.True(os.IsNotExist(statErr))
+	}
+}
+
+func TestGen_PositionalArgErrors(t *testing.T) {
+	// Target selection is -targets only. A stray positional word must
+	// fail loudly rather than be silently ignored and run against every
+	// target.
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "gen", "claude")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "unexpected argument"))
+
+	// No files should have been written.
+	for _, path := range []string{"CLAUDE.md", "AGENTS.md", ".claude/skills/review-pr/SKILL.md"} {
+		_, statErr := os.Stat(path)
+		is.True(os.IsNotExist(statErr))
+	}
+}
+
 func TestGen_RespectsCanceledContext(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()

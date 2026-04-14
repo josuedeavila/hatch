@@ -52,6 +52,37 @@ func TestClean_RespectsCanceledContext(t *testing.T) {
 	is.NoErr(err)
 }
 
+func TestClean_UnknownTargetInListDoesNothing(t *testing.T) {
+	// Mixed valid+invalid targets → whole command fails before touching
+	// anything. Generated files from a prior `hatch gen` must survive.
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "gen")
+	is.NoErr(err)
+
+	_, _, err = invoke(t, "clean", "-targets", "claude,nosuch")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "nosuch"))
+
+	// Claude's skill file must still be there — clean bailed before
+	// removing anything.
+	_, statErr := os.Stat(".claude/skills/review-pr/SKILL.md")
+	is.NoErr(statErr)
+}
+
+func TestClean_PositionalArgErrors(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+	_, _, err := invoke(t, "clean", "claude")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "unexpected argument"))
+}
+
 func TestClean_PreservesSurroundingUserContent(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()

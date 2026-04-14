@@ -20,6 +20,9 @@ func cmdClean(ctx context.Context, available *target.Set, args []string, stdout,
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if err := ensureNoPositional(fs, "clean"); err != nil {
+		return err
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

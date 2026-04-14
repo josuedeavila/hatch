@@ -22,6 +22,9 @@ func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, s
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if err := ensureNoPositional(fs, "gen"); err != nil {
+		return err
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

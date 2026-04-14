@@ -43,6 +43,9 @@ func cmdMetaSkill(_ context.Context, available *target.Set, args []string, stdou
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if err := ensureNoPositional(fs, "meta skill"); err != nil {
+		return err
+	}
 
 	// No targets → print the full SKILL.md to stdout (pipe-friendly).
 	if *targetsList == "" {

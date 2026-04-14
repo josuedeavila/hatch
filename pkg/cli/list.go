@@ -14,6 +14,9 @@ func cmdList(_ context.Context, available *target.Set, args []string, stdout, st
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if err := ensureNoPositional(fs, "list"); err != nil {
+		return err
+	}
 	targets, err := selectTargets(available, *targetsList)
 	if err != nil {
 		return err

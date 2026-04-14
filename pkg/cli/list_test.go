@@ -28,3 +28,24 @@ func TestList_NoSourceErrors(t *testing.T) {
 	_, _, err := invoke(t, "list")
 	is.True(err != nil)
 }
+
+func TestList_PositionalArgErrors(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "list", "claude")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "unexpected argument"))
+}
+
+func TestList_UnknownTargetErrors(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+	_, _, err := invoke(t, "list", "-targets", "claude,nosuch")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "nosuch"))
+}
