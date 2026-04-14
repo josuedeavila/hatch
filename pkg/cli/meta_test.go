@@ -102,23 +102,40 @@ func TestMeta_SkillMultipleTargets(t *testing.T) {
 	}
 }
 
-func TestMeta_SkillCopilotInlinesIntoInstructions(t *testing.T) {
-	// Copilot has no native skill primitive; hatch inlines skill bodies
-	// into .github/copilot-instructions.md. Meta skill should reach
-	// Copilot via that same path.
+func TestMeta_SkillCopilotErrors(t *testing.T) {
+	// Copilot has no native skill primitive — hatch would otherwise
+	// inline the meta skill into .github/copilot-instructions.md, which
+	// is not what the user asked for. `hatch meta skill -targets copilot`
+	// should fail fast with a clear error instead of a surprising write.
 	is := is.New(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 
 	_, _, err := invoke(t, "meta", "skill", "-targets", "copilot")
-	is.NoErr(err)
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "copilot"))
+	is.True(strings.Contains(err.Error(), "native skill primitive"))
 
-	body, err := os.ReadFile(".github/copilot-instructions.md")
-	is.NoErr(err)
-	s := string(body)
-	is.True(strings.Contains(s, "<!-- hatch:begin v1 -->"))
-	is.True(strings.Contains(s, "hatch"))
-	is.True(strings.Contains(s, "Never edit generated files"))
+	// No file should have been written.
+	_, statErr := os.Stat(".github/copilot-instructions.md")
+	is.True(os.IsNotExist(statErr))
+}
+
+func TestMeta_SkillMixedSupportedAndUnsupportedIsAllOrNothing(t *testing.T) {
+	// When a mix of supported and unsupported targets is requested, the
+	// whole run fails before any writes happen — no half-written state.
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "meta", "skill", "-targets", "claude,copilot")
+	is.True(err != nil)
+	is.True(strings.Contains(err.Error(), "copilot"))
+
+	// Claude's file must NOT exist — the error should fire before any
+	// target-level writes.
+	_, statErr := os.Stat(".claude/skills/hatch/SKILL.md")
+	is.True(os.IsNotExist(statErr))
 }
 
 func TestMeta_SkillUnknownTargetErrors(t *testing.T) {

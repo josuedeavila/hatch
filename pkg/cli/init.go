@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -9,10 +10,14 @@ import (
 	"sort"
 )
 
-// cmdInit scaffolds `.hatch/` with one example primitive of each kind so a
-// new user can `hatch gen` immediately and see output.
+// cmdInit scaffolds `.hatch/` with the four primitive subdirectories. By
+// default the directories are empty; `-examples` additionally writes one
+// example primitive of each kind so a new user can `hatch gen` immediately
+// and see output.
 func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) error {
-	fs, _ := commonFlags("init", stderr)
+	fs := flag.NewFlagSet("init", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	examples := fs.Bool("examples", false, "also write one example rule, skill, command, and agent")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -21,6 +26,10 @@ func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) error {
 		if err := os.MkdirAll(filepath.Join(srcRoot, sub), 0o755); err != nil {
 			return err
 		}
+	}
+	if !*examples {
+		fmt.Fprintf(stdout, "created %s/ (run `hatch new <kind> <title>` to add source files, or `hatch init -examples` for a starter set)\n", srcRoot)
+		return nil
 	}
 
 	// Files in a slice so iteration order (and therefore stdout output) is

@@ -21,43 +21,174 @@ mise run install
 
 ## Quick start
 
-```
-hatch init                     # scaffold .hatch/ with one example of each primitive
-hatch new <kind> [title]       # create a new source file (rule, skill, command, agent)
-hatch gen                      # write all target files
-hatch list                     # dry-run; show what would be written
-hatch clean                    # remove everything hatch generated
-hatch meta skill               # print a SKILL.md teaching a coding agent about hatch
-```
+A quick end-to-end walkthrough, starting from an empty project directory.
 
-`hatch meta skill` emits a SKILL.md that teaches a coding agent how to
-extend the hatch source tree itself. With no flags it writes to stdout;
-with `-targets` it drops the skill straight into each named target's
-native skill location:
+**1. Scaffold a source tree.** From the root of your project:
 
 ```
-hatch meta skill                              # stdout
-hatch meta skill -targets claude              # writes .claude/skills/hatch/SKILL.md
-hatch meta skill -targets claude,codex,opencode
+$ cd my-project
+$ hatch init
 ```
 
-All subcommands operate on the current working directory — `cd` into your
-project first. `gen`, `list`, `clean`, and `meta skill` accept a
-`-targets list` flag (comma-separated) to narrow which agents are touched:
+That creates an empty `.hatch/` tree with the four primitive
+subdirectories ready for you to drop sources into. Prefer to start from a
+working example of each kind? Use `hatch init -examples` instead — it
+additionally writes a sample rule, skill, command, and agent so you can
+`hatch gen` immediately and see output.
 
-```
-hatch gen                         # every target
-hatch gen -targets claude         # only claude
-hatch gen -targets claude,codex   # claude and codex
-```
-
-`hatch new` takes the primitive kind and a title:
+**2. Add your own source file.** Drop in a rule you want every coding agent
+in this project to follow:
 
 ```
 $ hatch new rule "Always write tests"
 created .hatch/rules/always-write-tests.md
 edit the file, then run `hatch gen` to write the output files.
 ```
+
+Open `.hatch/rules/always-write-tests.md` in your editor and replace the
+placeholder body with the rule you want. Rules are plain markdown — no
+frontmatter required.
+
+**3. Preview what will be written.** Before you touch any generated files,
+dry-run to see where everything will land:
+
+```
+$ hatch list
+Claude Code (claude):
+  CLAUDE.md  [block]
+  .claude/skills/review-pr/SKILL.md  [file]
+  ...
+OpenAI Codex (codex):
+  AGENTS.md  [block]
+  ...
+```
+
+**4. Generate the native files.** When it looks right:
+
+```
+$ hatch gen
+wrote CLAUDE.md (block)
+wrote .claude/skills/review-pr/SKILL.md (file)
+wrote AGENTS.md (block)
+...
+```
+
+Your always-write-tests rule is now in `CLAUDE.md`, `AGENTS.md`, and
+`.github/copilot-instructions.md` — each in the form that coding agent
+expects — alongside any skills, commands, and sub-agents you had. Commit
+the `.hatch/` source *and* the generated files together.
+
+**5. Iterate.** Edit anything under `.hatch/`, run `hatch gen` again, and
+every agent's files update in lockstep. `hatch clean` removes everything
+hatch wrote if you ever want to start over — your `.hatch/` source tree is
+never touched.
+
+## Using the CLI
+
+All subcommands operate on the current working directory — `cd` into your
+project first. Every command is safe to re-run.
+
+### `hatch init [-examples]`
+
+Scaffolds a `.hatch/` source tree with the four primitive subdirectories
+(`rules/`, `skills/`, `commands/`, `agents/`) so you have a home for your
+source files. By default the directories are empty. Pass `-examples` to
+additionally write one working example of each primitive — handy for a
+first-time setup where you want to `hatch gen` and see real output right
+away.
+
+```
+hatch init              # empty .hatch/ scaffold
+hatch init -examples    # + one sample rule, skill, command, and agent
+```
+
+Existing files are left alone, so both forms are safe to re-run in a
+directory that's already partially set up.
+
+### `hatch new <kind> [title]`
+
+Creates a single new source file from a template. `kind` is one of `rule`,
+`skill`, `command`, or `agent`. The title is slugged into a
+filesystem-safe name; if you omit it, you'll be prompted on stdin.
+
+```
+hatch new rule "Always write tests"      # → .hatch/rules/always-write-tests.md
+hatch new skill "review pr"              # → .hatch/skills/review-pr/SKILL.md
+hatch new command commit                 # → .hatch/commands/commit.md
+hatch new agent "security auditor"       # → .hatch/agents/security-auditor.md
+```
+
+Skill, command, and agent templates include a `description:` frontmatter
+field pre-filled with a `TODO` — fill it in before running `hatch gen`,
+since downstream agents either require or recommend it.
+
+### `hatch gen [-targets list]`
+
+Reads `.hatch/` and writes the native files each coding agent expects.
+With no flags, every registered target is generated. Narrow the run with
+`-targets`, a comma-separated list of target names:
+
+```
+hatch gen                         # every target
+hatch gen -targets claude         # only Claude Code
+hatch gen -targets claude,codex   # Claude Code and Codex
+```
+
+File-owned outputs under `.claude/`, `.agents/`, `.github/`, and
+`.opencode/` are overwritten from scratch. Block-injected files like
+`CLAUDE.md`, `AGENTS.md`, and `.github/copilot-instructions.md` have only
+the hatch-managed block replaced — any content you wrote around it is
+preserved across regeneration.
+
+### `hatch list [-targets list]`
+
+Dry-run: prints every path `hatch gen` would write, without touching the
+filesystem. Takes the same `-targets` flag as `gen`. Useful for previewing
+changes before committing, or in CI to assert the checked-in generated
+files match the current `.hatch/` source.
+
+```
+hatch list
+hatch list -targets claude
+```
+
+### `hatch clean [-targets list]`
+
+Removes everything hatch generated. File-owned outputs are deleted; the
+hatch-managed block is stripped from block-injected files (and the file
+itself is deleted if it becomes empty). Your `.hatch/` source tree is
+never touched.
+
+```
+hatch clean                       # remove every target's output
+hatch clean -targets claude       # only Claude Code's output
+```
+
+### `hatch meta skill [-targets list]`
+
+Emits a `SKILL.md` that teaches a coding agent how `.hatch/` is structured,
+so it can extend your source tree on its own instead of editing the
+generated files by mistake.
+
+With no flags, the SKILL.md is written to stdout — pipe it wherever you
+want:
+
+```
+hatch meta skill > .claude/skills/hatch/SKILL.md
+```
+
+With `-targets`, hatch drops the skill into each named target's native
+skill location for you:
+
+```
+hatch meta skill -targets claude                  # → .claude/skills/hatch/SKILL.md
+hatch meta skill -targets claude,codex,opencode   # one call, every agent
+```
+
+### `hatch version`, `hatch help`
+
+Print the version or the built-in usage summary. `-v`/`--version` and
+`-h`/`--help` are accepted as aliases.
 
 ## Source layout
 

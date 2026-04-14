@@ -65,19 +65,51 @@ func cmdMetaSkill(_ context.Context, available *target.Set, args []string, stdou
 			Body:        metaSkillBody,
 		}},
 	}
+
+	// Plan every selected target up-front and reject any that don't have a
+	// native skill primitive (detected by the absence of a file-owned
+	// artifact from its Generate output). Failing the whole run before we
+	// write anything means the user sees a clean error instead of a half-
+	// finished set of outputs.
+	type plan struct {
+		target    target.Target
+		artifacts []target.Artifact
+	}
+	var plans []plan
 	for _, t := range targets.All() {
 		arts, err := t.Generate(src)
 		if err != nil {
 			return fmt.Errorf("%s: %w", t.Name(), err)
 		}
-		for _, a := range arts {
+		if !hasFileArtifact(arts) {
+			return fmt.Errorf("target %q has no native skill primitive, so `hatch meta skill -targets %s` has nowhere to write; pipe the stdout form (`hatch meta skill > path/to/SKILL.md`) instead", t.Name(), t.Name())
+		}
+		plans = append(plans, plan{target: t, artifacts: arts})
+	}
+
+	for _, p := range plans {
+		for _, a := range p.artifacts {
 			if err := writeArtifact(a); err != nil {
-				return fmt.Errorf("%s: %s: %w", t.Name(), a.Path, err)
+				return fmt.Errorf("%s: %s: %w", p.target.Name(), a.Path, err)
 			}
 			fmt.Fprintf(stdout, "wrote %s (%s)\n", a.Path, a.Mode)
 		}
 	}
 	return nil
+}
+
+// hasFileArtifact reports whether arts contains at least one file-owned
+// artifact — i.e. the target produced a standalone file rather than only
+// inlining into a shared block-injected file. For `hatch meta skill`, a
+// target with no file artifact is treated as "doesn't support skills
+// natively" and rejected.
+func hasFileArtifact(arts []target.Artifact) bool {
+	for _, a := range arts {
+		if a.Mode == target.ModeFile {
+			return true
+		}
+	}
+	return false
 }
 
 // metaSkillName, metaSkillDescription, metaSkillBody are the three pieces
@@ -167,7 +199,8 @@ with the agent's display name (e.g., "Claude Code") and short name (e.g.,
 ## Useful commands
 
 ` + "```" + `
-hatch init                        # scaffold .hatch/ with one example of each primitive
+hatch init                        # scaffold an empty .hatch/ tree
+hatch init -examples              # …plus one starter example of each primitive
 hatch new <kind> <title>          # create a new source file
 hatch gen                         # regenerate all target files
 hatch gen -targets claude         # regenerate only one agent's files

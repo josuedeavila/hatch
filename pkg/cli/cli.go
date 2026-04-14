@@ -60,7 +60,7 @@ Usage:
   hatch gen   [-targets list]          write all target outputs
   hatch list  [-targets list]          dry-run; print what would be written
   hatch clean [-targets list]          remove generated outputs
-  hatch init                           scaffold .hatch/
+  hatch init  [-examples]              scaffold .hatch/ (optionally with example files)
   hatch new <kind> [title]             create a new source file
   hatch meta skill [-targets list]     write/print a SKILL.md about hatch
   hatch version                        print version and exit
