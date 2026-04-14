@@ -4,10 +4,12 @@
 //
 // Usage:
 //
-//	hatch generate [-C dir] [-targets list]    write all target outputs
-//	hatch list     [-C dir] [-targets list]    dry-run (print what would be written)
-//	hatch clean    [-C dir] [-targets list]    remove generated outputs
-//	hatch init     [-C dir]                    scaffold .hatch/
+//	hatch gen   [-targets list]          write all target outputs
+//	hatch list  [-targets list]          dry-run (print what would be written)
+//	hatch clean [-targets list]          remove generated outputs
+//	hatch init  [-examples]              scaffold .hatch/
+//	hatch new <kind> [title]             create a new source file
+//	hatch meta skill [-targets list]     print or write a SKILL.md about hatch
 //	hatch version
 //	hatch help
 package main
@@ -18,6 +20,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"runtime/debug"
 
 	"github.com/matryer/hatch/pkg/cli"
 	"github.com/matryer/hatch/pkg/target"
@@ -26,9 +29,6 @@ import (
 	"github.com/matryer/hatch/pkg/target/copilot"
 	"github.com/matryer/hatch/pkg/target/opencode"
 )
-
-// version is overridden at build time via -ldflags "-X main.version=..."
-var version = "dev"
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -48,5 +48,43 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		copilot.New(),
 		opencode.New(),
 	)
-	return cli.Run(ctx, version, targets, args, stdin, stdout, stderr)
+	return cli.Run(ctx, version(), targets, args, stdin, stdout, stderr)
+}
+
+// version returns the hatch CLI version string, derived from Go build
+// info. When installed via `go install github.com/matryer/hatch/cmd/hatch@vX.Y.Z`
+// this is the tag (`v0.1.0`); when installed `@latest` off an untagged
+// commit it's the pseudo-version (`v0.0.0-<date>-<sha>`). Local builds
+// (`go build`, `go test`, `go run`) report `(devel)` in build info — for
+// those we emit `dev` optionally suffixed with the short VCS commit so
+// bug reports include enough to reproduce.
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "dev"
+	}
+	if v := info.Main.Version; v != "" && v != "(devel)" {
+		return v
+	}
+	// Local/dev build — append short commit hash if the toolchain
+	// recorded one. Tests running under `go test` typically won't.
+	var rev, modified string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+		case "vcs.modified":
+			modified = s.Value
+		}
+	}
+	if rev == "" {
+		return "dev"
+	}
+	if len(rev) > 7 {
+		rev = rev[:7]
+	}
+	if modified == "true" {
+		return "dev+" + rev + "-dirty"
+	}
+	return "dev+" + rev
 }
