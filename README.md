@@ -31,10 +31,9 @@ $ hatch init
 ```
 
 That creates an empty `.hatch/` tree with the four primitive
-subdirectories ready for you to drop sources into. Prefer to start from a
-working example of each kind? Use `hatch init -examples` instead — it
-additionally writes a sample rule, skill, command, and agent so you can
-`hatch gen` immediately and see output.
+subdirectories ready for you to drop sources into.
+
+> Prefer to start from a working example of each kind? Use `hatch init -examples` instead — it additionally writes a sample rule, skill, command, and agent so you can `hatch gen` immediately and see output.
 
 **2. Add your own source file.** Drop in a rule you want every coding agent
 in this project to follow:
