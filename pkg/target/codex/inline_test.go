@@ -17,14 +17,14 @@ import (
 
 func TestCodex_InlinesCommandsIntoAGENTSMd(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Commands: []source.Primitive{{
 			Kind:        source.KindCommand,
 			Name:        "commit",
 			Description: "Commit current changes.",
 			Body:        "Summarise the staged diff and create a commit.",
 		}},
-	}
+	}}}
 	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 
@@ -43,14 +43,14 @@ func TestCodex_InlinesCommandsIntoAGENTSMd(t *testing.T) {
 
 func TestCodex_InlinesAgentsIntoAGENTSMd(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Agents: []source.Primitive{{
 			Kind:        source.KindAgent,
 			Name:        "security-auditor",
 			Description: "Review code for security issues.",
 			Body:        "Focus on OWASP Top 10.",
 		}},
-	}
+	}}}
 	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 
@@ -68,7 +68,7 @@ func TestCodex_InlinesAgentsIntoAGENTSMd(t *testing.T) {
 
 func TestCodex_RulesCommandsAgentsCombinedInOneBlock(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Rules: []source.Primitive{{
 			Kind: source.KindRule, Name: "style", Body: "STYLE RULE",
 		}},
@@ -78,7 +78,7 @@ func TestCodex_RulesCommandsAgentsCombinedInOneBlock(t *testing.T) {
 		Agents: []source.Primitive{{
 			Kind: source.KindAgent, Name: "sec", Description: "d", Body: "AGENT BODY",
 		}},
-	}
+	}}}
 	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 
@@ -96,7 +96,7 @@ func TestCodex_RulesCommandsAgentsCombinedInOneBlock(t *testing.T) {
 
 func TestCodex_CommandsRespectTargetsFilter(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Commands: []source.Primitive{{
 			Kind:        source.KindCommand,
 			Name:        "opencode-only",
@@ -104,7 +104,7 @@ func TestCodex_CommandsRespectTargetsFilter(t *testing.T) {
 			Body:        "HIDDEN FROM CODEX",
 			Targets:     []string{"opencode"},
 		}},
-	}
+	}}}
 	arts, err := codex.New().Generate(s)
 	is.NoErr(err)
 	for _, a := range arts {

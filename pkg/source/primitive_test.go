@@ -14,6 +14,15 @@ func TestKindConstants(t *testing.T) {
 	is.Equal(string(KindAgent), "agent")
 }
 
+func TestPrimitiveDirConstants(t *testing.T) {
+	is := is.New(t)
+	is.Equal(PrimitiveDirPrefix, "_")
+	is.Equal(RulesDir, "_rules")
+	is.Equal(SkillsDir, "_skills")
+	is.Equal(CommandsDir, "_commands")
+	is.Equal(AgentsDir, "_agents")
+}
+
 func TestPrimitive_HasTarget_EmptyMeansAll(t *testing.T) {
 	is := is.New(t)
 	p := &Primitive{}
@@ -33,8 +42,15 @@ func TestPrimitive_HasTarget_ExplicitList(t *testing.T) {
 func TestSource_ZeroValue(t *testing.T) {
 	is := is.New(t)
 	s := &Source{}
-	is.Equal(len(s.Rules), 0)
-	is.Equal(len(s.Skills), 0)
-	is.Equal(len(s.Commands), 0)
-	is.Equal(len(s.Agents), 0)
+	is.Equal(len(s.Scopes), 0)
+}
+
+func TestSource_RootReturnsTheRootScope(t *testing.T) {
+	is := is.New(t)
+	s := &Source{Scopes: []Scope{
+		{Path: ""},
+		{Path: "backend"},
+	}}
+	is.True(s.Root() != nil)
+	is.Equal(s.Root().Path, "")
 }

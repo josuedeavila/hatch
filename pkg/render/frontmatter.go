@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -104,6 +105,12 @@ func toNode(v any) (*yaml.Node, bool) {
 			return nil, false
 		}
 		return t, true
+	case bool:
+		// Booleans are always rendered, including false, since the
+		// presence of e.g. `alwaysApply: false` is itself meaningful
+		// to downstream tools (Cursor uses it as a primitive's
+		// load-eagerness flag).
+		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(t)}, true
 	default:
 		return nil, false
 	}

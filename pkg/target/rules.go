@@ -12,10 +12,10 @@ import (
 // `applyTo` glob get a heading that includes the glob so the scope is visible
 // in the generated file; otherwise the rule body is used verbatim (with any
 // leading H1 already in the body preserved as-is).
-func RulesBlock(s *source.Source, targetName, displayName string) string {
+func RulesBlock(sc *source.Scope, targetName, displayName string) string {
 	var buf strings.Builder
 	first := true
-	for _, r := range s.Rules {
+	for _, r := range sc.Rules {
 		if !r.HasTarget(targetName) {
 			continue
 		}
@@ -42,24 +42,24 @@ func RulesBlock(s *source.Source, targetName, displayName string) string {
 // SkillsBlock returns skill bodies as sub-sections for use inside a hatch
 // block (currently only used by the Copilot target, which has no native
 // skill primitive).
-func SkillsBlock(s *source.Source, targetName, displayName string) string {
-	return inlinePrimitives(s.Skills, "Skills", "Skill", targetName, displayName,
+func SkillsBlock(sc *source.Scope, targetName, displayName string) string {
+	return inlinePrimitives(sc.Skills, "Skills", "Skill", targetName, displayName,
 		"The following capabilities describe actions the user may ask the model to perform.")
 }
 
 // CommandsBlock returns command bodies as an inlined section for targets
 // that have no native slash-command primitive (Codex). The section header
 // explains how the agent should interpret a user's request for a command.
-func CommandsBlock(s *source.Source, targetName, displayName string) string {
-	return inlinePrimitives(s.Commands, "Commands", "Command", targetName, displayName,
+func CommandsBlock(sc *source.Scope, targetName, displayName string) string {
+	return inlinePrimitives(sc.Commands, "Commands", "Command", targetName, displayName,
 		"If the user asks to run one of these commands, follow the matching instructions below.")
 }
 
 // AgentsBlock returns agent bodies as an inlined section for targets that
 // have no native sub-agent primitive (Codex). The section header explains
 // how the model should behave when asked to delegate to one.
-func AgentsBlock(s *source.Source, targetName, displayName string) string {
-	return inlinePrimitives(s.Agents, "Sub-agents", "Sub-agent", targetName, displayName,
+func AgentsBlock(sc *source.Scope, targetName, displayName string) string {
+	return inlinePrimitives(sc.Agents, "Sub-agents", "Sub-agent", targetName, displayName,
 		"If the user asks to delegate to one of these sub-agents, take on that role and follow the matching instructions.")
 }
 

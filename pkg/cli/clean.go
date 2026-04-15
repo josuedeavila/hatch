@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/matryer/hatch/pkg/block"
-	"github.com/matryer/hatch/pkg/source"
 	"github.com/matryer/hatch/pkg/target"
 )
 
@@ -16,21 +15,21 @@ import (
 // source tree, then removes those files (for ModeFile) or strips just the
 // hatch block (for ModeBlock). No manifest is kept.
 func cmdClean(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs, targetsList := commonFlags("clean", stderr)
-	if err := fs.Parse(args); err != nil {
+	cf := commonFlags("clean", stderr)
+	if err := cf.fs.Parse(args); err != nil {
 		return err
 	}
-	if err := ensureNoPositional(fs, "clean"); err != nil {
+	if err := ensureNoPositional(cf.fs, "clean"); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	targets, err := selectTargets(available, *targetsList)
+	targets, err := selectTargets(available, *cf.targetsList)
 	if err != nil {
 		return err
 	}
-	src, err := source.Load(".")
+	src, err := loadSource(!*cf.noHatchSkill)
 	if err != nil {
 		return err
 	}

@@ -12,11 +12,11 @@ import (
 
 func TestGenerate_RulesAsBlockInCLAUDE(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Rules: []source.Primitive{
 			{Kind: source.KindRule, Name: "coding-style", Body: "Write clean code."},
 		},
-	}
+	}}}
 	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
@@ -33,11 +33,11 @@ func TestGenerate_RulesAsBlockInCLAUDE(t *testing.T) {
 
 func TestGenerate_ApplyToRuleGetsHeading(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Rules: []source.Primitive{
 			{Kind: source.KindRule, Name: "go-rules", ApplyTo: "**/*.go", Body: "Go body."},
 		},
-	}
+	}}}
 	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
@@ -53,14 +53,14 @@ func TestGenerate_ApplyToRuleGetsHeading(t *testing.T) {
 
 func TestGenerate_SkillBecomesFileUnderDotClaude(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Skills: []source.Primitive{{
 			Kind:        source.KindSkill,
 			Name:        "review-pr",
 			Description: "Review a PR.",
 			Body:        "do stuff\n",
 		}},
-	}
+	}}}
 	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	var skill *target.Artifact
@@ -80,14 +80,14 @@ func TestGenerate_SkillBecomesFileUnderDotClaude(t *testing.T) {
 
 func TestGenerate_CommandBecomesDotClaudeCommand(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Commands: []source.Primitive{{
 			Kind:        source.KindCommand,
 			Name:        "commit",
 			Description: "Commit with a generated message.",
 			Body:        "body\n",
 		}},
-	}
+	}}}
 	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	found := false
@@ -102,14 +102,14 @@ func TestGenerate_CommandBecomesDotClaudeCommand(t *testing.T) {
 
 func TestGenerate_AgentBecomesDotClaudeAgent(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Agents: []source.Primitive{{
 			Kind:        source.KindAgent,
 			Name:        "security-auditor",
 			Description: "Security review.",
 			Body:        "body\n",
 		}},
-	}
+	}}}
 	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	found := false
@@ -121,9 +121,108 @@ func TestGenerate_AgentBecomesDotClaudeAgent(t *testing.T) {
 	is.True(found)
 }
 
+func TestGenerate_ScopedRulesGoToNestedCLAUDE(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Rules: []source.Primitive{
+				{Kind: source.KindRule, Name: "style", Body: "Backend style."},
+			},
+		},
+	}}
+	arts, err := claude.New().Generate(s)
+	is.NoErr(err)
+	var blk *target.Artifact
+	for i := range arts {
+		if arts[i].Path == "backend/CLAUDE.md" {
+			blk = &arts[i]
+		}
+	}
+	is.True(blk != nil) // backend/CLAUDE.md artifact produced
+	is.Equal(blk.Mode, target.ModeBlock)
+	is.True(strings.Contains(blk.Content, "Backend style."))
+}
+
+func TestGenerate_ScopedSkillToNestedClaudeDir(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Skills: []source.Primitive{{
+				Kind: source.KindSkill, Name: "review", Description: "d", Body: "b",
+			}},
+		},
+	}}
+	arts, err := claude.New().Generate(s)
+	is.NoErr(err)
+	found := false
+	for _, a := range arts {
+		if a.Path == "backend/.claude/skills/review/SKILL.md" {
+			found = true
+			is.Equal(a.Mode, target.ModeFile)
+		}
+	}
+	is.True(found)
+}
+
+func TestGenerate_ScopedCommandAndAgentNested(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Commands: []source.Primitive{{
+				Kind: source.KindCommand, Name: "deploy", Description: "d", Body: "b",
+			}},
+			Agents: []source.Primitive{{
+				Kind: source.KindAgent, Name: "guard", Description: "d", Body: "b",
+			}},
+		},
+	}}
+	arts, err := claude.New().Generate(s)
+	is.NoErr(err)
+	paths := map[string]bool{}
+	for _, a := range arts {
+		paths[a.Path] = true
+	}
+	is.True(paths["backend/.claude/commands/deploy.md"])
+	is.True(paths["backend/.claude/agents/guard.md"])
+}
+
+func TestGenerate_RootAndNestedCLAUDECoexist(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{
+			Path: "",
+			Rules: []source.Primitive{
+				{Kind: source.KindRule, Name: "global", Body: "GLOBAL RULE"},
+			},
+		},
+		{
+			Path: "backend",
+			Rules: []source.Primitive{
+				{Kind: source.KindRule, Name: "api", Body: "BACKEND RULE"},
+			},
+		},
+	}}
+	arts, err := claude.New().Generate(s)
+	is.NoErr(err)
+	byPath := map[string]string{}
+	for _, a := range arts {
+		byPath[a.Path] = a.Content
+	}
+	is.True(strings.Contains(byPath["CLAUDE.md"], "GLOBAL RULE"))
+	is.True(!strings.Contains(byPath["CLAUDE.md"], "BACKEND RULE"))
+	is.True(strings.Contains(byPath["backend/CLAUDE.md"], "BACKEND RULE"))
+	is.True(!strings.Contains(byPath["backend/CLAUDE.md"], "GLOBAL RULE"))
+}
+
 func TestGenerate_RespectsTargetsFilter(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Skills: []source.Primitive{{
 			Kind:        source.KindSkill,
 			Name:        "only-opencode",
@@ -131,7 +230,7 @@ func TestGenerate_RespectsTargetsFilter(t *testing.T) {
 			Body:        "b",
 			Targets:     []string{"opencode"},
 		}},
-	}
+	}}}
 	arts, err := claude.New().Generate(s)
 	is.NoErr(err)
 	// The only skill opts out of claude — no artifacts expected.

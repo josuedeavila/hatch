@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/matryer/hatch/pkg/block"
-	"github.com/matryer/hatch/pkg/source"
 	"github.com/matryer/hatch/pkg/target"
 )
 
@@ -18,21 +17,21 @@ import (
 // current working directory. Target selection is via the `-targets list`
 // flag; an empty list means every registered target.
 func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs, targetsList := commonFlags("gen", stderr)
-	if err := fs.Parse(args); err != nil {
+	cf := commonFlags("gen", stderr)
+	if err := cf.fs.Parse(args); err != nil {
 		return err
 	}
-	if err := ensureNoPositional(fs, "gen"); err != nil {
+	if err := ensureNoPositional(cf.fs, "gen"); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	targets, err := selectTargets(available, *targetsList)
+	targets, err := selectTargets(available, *cf.targetsList)
 	if err != nil {
 		return err
 	}
-	src, err := source.Load(".")
+	src, err := loadSource(!*cf.noHatchSkill)
 	if err != nil {
 		return err
 	}
@@ -73,9 +72,50 @@ func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, s
 		if err := writeArtifact(merged); err != nil {
 			return fmt.Errorf("%s: %w", p, err)
 		}
-		fmt.Fprintf(stdout, "wrote %s (%s)\n", merged.Path, merged.Mode)
+		fmt.Fprintln(stdout, formatWroteLine(merged))
 	}
 	return nil
+}
+
+// formatWroteLine builds the one-line `wrote ...` status message that
+// hatch gen prints for each artifact. File-mode writes show the simple
+// `(file)` suffix; block-mode writes show the line range where the
+// block ended up, so the user can jump straight to it in their editor.
+// The marker name itself is omitted because it's always the same.
+func formatWroteLine(a target.Artifact) string {
+	if a.Mode != target.ModeBlock {
+		return fmt.Sprintf("wrote %s (%s)", a.Path, a.Mode)
+	}
+	begin, end, ok := findBlockLineRange(a.Path, block.CurrentMarker)
+	if !ok {
+		return fmt.Sprintf("wrote %s (%s)", a.Path, a.Mode)
+	}
+	return fmt.Sprintf("wrote %s (lines %d-%d)", a.Path, begin, end)
+}
+
+// findBlockLineRange returns the 1-indexed line numbers of the begin
+// and end marker lines for `marker` inside the file at path. Returns
+// ok=false if the file can't be read or the markers aren't found — in
+// that case callers fall back to a shorter output format.
+func findBlockLineRange(path, marker string) (begin, end int, ok bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, 0, false
+	}
+	beginMarker, endMarker := block.Markers(marker)
+	lines := strings.Split(string(data), "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if begin == 0 && trimmed == beginMarker {
+			begin = i + 1
+			continue
+		}
+		if begin != 0 && trimmed == endMarker {
+			end = i + 1
+			return begin, end, true
+		}
+	}
+	return 0, 0, false
 }
 
 // pending pairs an artifact with the name of the target that produced

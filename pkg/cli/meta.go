@@ -1,125 +1,57 @@
 package cli
 
-import (
-	"context"
-	"errors"
-	"flag"
-	"fmt"
-	"io"
+import "github.com/matryer/hatch/pkg/source"
 
-	"github.com/matryer/hatch/pkg/source"
-	"github.com/matryer/hatch/pkg/target"
-)
-
-// cmdMeta dispatches the `hatch meta` family of subcommands. These emit a
-// self-describing document that teaches a coding agent about hatch itself.
-//
-// Currently supported:
-//
-//	hatch meta skill [-targets list]
-//
-// With no targets, the SKILL.md is written to stdout. With `-targets`,
-// hatch synthesises a Source containing a single skill (the meta skill)
-// and runs each named target's Generate, writing the result to the
-// target's native skill location (e.g. `.claude/skills/hatch/SKILL.md`
-// for claude, `.agents/skills/hatch/SKILL.md` for codex, etc.).
-func cmdMeta(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 {
-		return errors.New("hatch meta: missing subcommand (want: skill)")
-	}
-	sub, rest := args[0], args[1:]
-	switch sub {
-	case "skill":
-		return cmdMetaSkill(ctx, available, rest, stdout, stderr)
-	default:
-		return fmt.Errorf("hatch meta: unknown subcommand %q (want: skill)", sub)
-	}
-}
-
-func cmdMetaSkill(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("meta skill", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	targetsList := fs.String("targets", "", "comma-separated target names; omit to print to stdout")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if err := ensureNoPositional(fs, "meta skill"); err != nil {
-		return err
-	}
-
-	// No targets → print the full SKILL.md to stdout (pipe-friendly).
-	if *targetsList == "" {
-		_, err := io.WriteString(stdout, metaSkillDoc)
-		return err
-	}
-
-	targets, err := selectTargets(available, *targetsList)
+// loadSource is the gen/list/clean shared entry point. It loads .hatch/
+// from the current working directory and, unless includeMeta is false,
+// injects the hatch meta skill into the root scope so the three
+// commands see the same primitives — which in particular means
+// `hatch clean` removes the same meta-skill outputs that `hatch gen`
+// wrote. Callers pass includeMeta from a `-no-hatch-skill` flag: pass
+// false to opt out of the auto-injected meta skill for this run.
+func loadSource(includeMeta bool) (*source.Source, error) {
+	s, err := source.Load(".")
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	// Synthesise a source tree containing just the meta skill, then let
-	// each target's Generate drop it into its native skill location.
-	src := &source.Source{
-		Skills: []source.Primitive{{
-			Kind:        source.KindSkill,
-			Name:        metaSkillName,
-			Description: metaSkillDescription,
-			Body:        metaSkillBody,
-		}},
+	if includeMeta {
+		injectMetaSkill(s)
 	}
-
-	// Plan every selected target up-front and reject any that don't have a
-	// native skill primitive (detected by the absence of a file-owned
-	// artifact from its Generate output). Failing the whole run before we
-	// write anything means the user sees a clean error instead of a half-
-	// finished set of outputs.
-	type plan struct {
-		target    target.Target
-		artifacts []target.Artifact
-	}
-	var plans []plan
-	for _, t := range targets.All() {
-		arts, err := t.Generate(src)
-		if err != nil {
-			return fmt.Errorf("%s: %w", t.Name(), err)
-		}
-		if !hasFileArtifact(arts) {
-			return fmt.Errorf("target %q has no native skill primitive, so `hatch meta skill -targets %s` has nowhere to write; pipe the stdout form (`hatch meta skill > path/to/SKILL.md`) instead", t.Name(), t.Name())
-		}
-		plans = append(plans, plan{target: t, artifacts: arts})
-	}
-
-	for _, p := range plans {
-		for _, a := range p.artifacts {
-			if err := writeArtifact(a); err != nil {
-				return fmt.Errorf("%s: %s: %w", p.target.Name(), a.Path, err)
-			}
-			fmt.Fprintf(stdout, "wrote %s (%s)\n", a.Path, a.Mode)
-		}
-	}
-	return nil
+	return s, nil
 }
 
-// hasFileArtifact reports whether arts contains at least one file-owned
-// artifact — i.e. the target produced a standalone file rather than only
-// inlining into a shared block-injected file. For `hatch meta skill`, a
-// target with no file artifact is treated as "doesn't support skills
-// natively" and rejected.
-func hasFileArtifact(arts []target.Artifact) bool {
-	for _, a := range arts {
-		if a.Mode == target.ModeFile {
-			return true
+// injectMetaSkill adds the hatch meta skill to the root scope of src so
+// every `hatch gen` run automatically writes a SKILL.md teaching coding
+// agents how `.hatch/` is structured and how to extend it. This is the
+// successor to the (removed) `hatch meta skill` subcommand: instead of
+// asking users to drop the meta skill into their tree manually, hatch
+// includes it in every generation pass.
+//
+// If the user already has a root-scope skill named "hatch", that one
+// wins — injectMetaSkill is a no-op so the user can override the
+// content of the meta skill by writing their own `.hatch/_skills/hatch/`.
+func injectMetaSkill(s *source.Source) {
+	root := s.Root()
+	if root == nil {
+		return
+	}
+	for _, sk := range root.Skills {
+		if sk.Name == metaSkillName {
+			return
 		}
 	}
-	return false
+	root.Skills = append(root.Skills, source.Primitive{
+		Kind:        source.KindSkill,
+		Name:        metaSkillName,
+		Description: metaSkillDescription,
+		Body:        metaSkillBody,
+	})
 }
 
-// metaSkillName, metaSkillDescription, metaSkillBody are the three pieces
-// that together make up the SKILL.md printed or written for `hatch meta
-// skill`. Keeping them separate lets us either serialise the full file
-// (for stdout) or hand them to a target's Generate (for target-native
-// placement) without reparsing.
+// metaSkillName, metaSkillDescription, metaSkillBody are the three
+// pieces that together form the hatch meta SKILL.md that gets injected
+// into every `hatch gen` run. Keeping them as separate constants lets
+// injectMetaSkill build a Primitive without re-parsing.
 const (
 	metaSkillName        = "hatch"
 	metaSkillDescription = "Authoring rules, skills, commands, and sub-agents for this project via hatch — write once, generate for every coding agent."
@@ -130,7 +62,7 @@ const metaSkillBody = `# hatch
 This project uses **hatch** (` + "`github.com/matryer/hatch`" + `) to keep a single
 source of truth for the guidance it sends to coding agents. Hatch reads a
 directory under ` + "`.hatch/`" + ` and produces the native files each agent expects
-(Claude Code, OpenAI Codex, GitHub Copilot, OpenCode).
+(Claude Code, OpenAI Codex, GitHub Copilot, Cursor, OpenCode).
 
 When you are asked to add, change, or remove rules, skills, slash commands,
 or sub-agent definitions in this project, edit files under ` + "`.hatch/`" + ` — not
@@ -146,12 +78,40 @@ go install github.com/matryer/hatch/cmd/hatch@latest
 
 ## The four primitives
 
-| Kind      | Purpose                                                            | Source path                           |
-|-----------|--------------------------------------------------------------------|---------------------------------------|
-| ` + "`rule`" + `    | Always-on project instructions; optionally scoped with a glob      | ` + "`.hatch/rules/<slug>.md`" + `              |
-| ` + "`skill`" + `   | Model-invoked in-session capability; supports sibling assets       | ` + "`.hatch/skills/<slug>/SKILL.md`" + `       |
-| ` + "`command`" + ` | User-invoked slash prompt                                          | ` + "`.hatch/commands/<slug>.md`" + `           |
-| ` + "`agent`" + `   | Delegated sub-agent definition                                     | ` + "`.hatch/agents/<slug>.md`" + `             |
+Hatch primitive containers use an underscore prefix to distinguish them
+from user-authored path components in nested layouts. The four exact
+container names are ` + "`_rules`" + `, ` + "`_skills`" + `, ` + "`_commands`" + `, and ` + "`_agents`" + ` —
+any other directory under ` + "`.hatch/`" + ` is a scope path component (see
+"Nested paths" below).
+
+| Kind      | Purpose                                                            | Source path                            |
+|-----------|--------------------------------------------------------------------|----------------------------------------|
+| ` + "`rule`" + `    | Always-on project instructions; optionally scoped with a glob      | ` + "`.hatch/_rules/<slug>.md`" + `              |
+| ` + "`skill`" + `   | Model-invoked in-session capability; supports sibling assets       | ` + "`.hatch/_skills/<slug>/SKILL.md`" + `       |
+| ` + "`command`" + ` | User-invoked slash prompt                                          | ` + "`.hatch/_commands/<slug>.md`" + `           |
+| ` + "`agent`" + `   | Delegated sub-agent definition                                     | ` + "`.hatch/_agents/<slug>.md`" + `             |
+
+## Nested paths
+
+For monorepos that need different guidance per area, put a path
+component between ` + "`.hatch/`" + ` and a primitive container. The path becomes
+a prefix on the generated output:
+
+` + "```" + `
+.hatch/backend/_rules/style.md     → backend/CLAUDE.md, backend/AGENTS.md
+.hatch/services/api/_skills/check  → services/api/.claude/skills/check/SKILL.md
+` + "```" + `
+
+Claude Code, Codex, and OpenCode all read nested ` + "`CLAUDE.md`" + ` /
+` + "`AGENTS.md`" + ` files from subdirectories natively. Copilot does not — it
+only reads ` + "`.github/`" + ` from the repo root — so hatch routes scoped Copilot
+output through ` + "`.github/instructions/<scope-slug>-<name>.instructions.md`" + `
+with an auto-generated ` + "`applyTo`" + ` glob.
+
+Path components must not match one of the four primitive container names
+(` + "`_rules`" + `, ` + "`_skills`" + `, ` + "`_commands`" + `, ` + "`_agents`" + `). Other ` + "`_`" + `-prefixed
+names work, but it's good practice to avoid them — future hatch versions
+may add new primitive container names.
 
 ## Creating a new source file
 
@@ -164,14 +124,18 @@ hatch new command "Commit with generated message"
 hatch new agent "Security auditor"
 ` + "```" + `
 
-Each call creates the right file under ` + "`.hatch/`" + ` with a minimal template,
-slugs the title into a filesystem-safe name, and reminds you to run
-` + "`hatch gen`" + ` afterwards. For skills, the file is ` + "`SKILL.md`" + ` inside a
-directory — place sibling assets (scripts, references) alongside and they
-copy through verbatim.
+Add ` + "`-path <relative-path>`" + ` to write under a nested scope:
 
-You can also write files by hand under ` + "`.hatch/<kind>/...`" + ` if you prefer —
-` + "`hatch new`" + ` is just a scaffolding helper.
+` + "```" + `
+hatch new rule -path backend "Database access patterns"
+hatch new skill -path services/api "Smoke test the API"
+` + "```" + `
+
+For skills, the file is ` + "`SKILL.md`" + ` inside a directory — place sibling
+assets (scripts, references) alongside and they copy through verbatim.
+
+You can also write files by hand under ` + "`.hatch/[<path>/]_<kind>s/...`" + `
+if you prefer — ` + "`hatch new`" + ` is just a scaffolding helper.
 
 ## Frontmatter
 
@@ -204,12 +168,13 @@ with the agent's display name (e.g., "Claude Code") and short name (e.g.,
 ` + "```" + `
 hatch init                        # scaffold an empty .hatch/ tree
 hatch init -examples              # …plus one starter example of each primitive
+hatch init -path backend          # …scaffold under a nested scope
 hatch new <kind> <title>          # create a new source file
+hatch new <kind> -path <p> <t>    # create one under a nested scope
 hatch gen                         # regenerate all target files
 hatch gen -targets claude         # regenerate only one agent's files
 hatch list                        # dry-run: show what gen would write
 hatch clean                       # remove everything hatch generated
-hatch meta skill -targets claude  # drop this SKILL.md into every target's skills dir
 ` + "```" + `
 
 ## Never edit generated files
@@ -224,13 +189,7 @@ For the block-injected files (` + "`CLAUDE.md`" + `, ` + "`AGENTS.md`" + `,
 ` + "`.github/copilot-instructions.md`" + `), hatch only rewrites content between
 ` + "`<!-- hatch:begin v1 -->`" + ` and ` + "`<!-- hatch:end v1 -->`" + ` markers — surrounding
 content you have written by hand is preserved across regeneration.
-`
 
-// metaSkillDoc is the full SKILL.md (frontmatter + body) emitted for
-// `hatch meta skill` with no targets. Assembled from the constants above
-// at package init so there's a single source of truth for the body.
-const metaSkillDoc = "---\n" +
-	"name: " + metaSkillName + "\n" +
-	"description: " + metaSkillDescription + "\n" +
-	"---\n\n" +
-	metaSkillBody
+For nested scopes, the same rules apply to the prefixed paths
+(` + "`backend/CLAUDE.md`" + `, ` + "`services/api/AGENTS.md`" + `, etc.).
+`

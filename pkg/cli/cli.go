@@ -37,8 +37,6 @@ func Run(ctx context.Context, version string, targets *target.Set, args []string
 		return cmdInit(ctx, rest, stdout, stderr)
 	case "new":
 		return cmdNew(ctx, rest, stdin, stdout, stderr)
-	case "meta":
-		return cmdMeta(ctx, targets, rest, stdout, stderr)
 	case "version", "--version", "-v":
 		fmt.Fprintln(stdout, version)
 		return nil
@@ -57,29 +55,38 @@ Generate rules, skills, commands, and sub-agent definitions for multiple
 coding agents from a single source at .hatch/.
 
 Usage:
-  hatch gen   [-targets list]          write all target outputs
-  hatch list  [-targets list]          dry-run; print what would be written
-  hatch clean [-targets list]          remove generated outputs
-  hatch init  [-examples]              scaffold .hatch/ (optionally with example files)
-  hatch new <kind> [title]             create a new source file
-  hatch meta skill [-targets list]     write/print a SKILL.md about hatch
+  hatch gen   [flags]                  write all target outputs
+  hatch list  [flags]                  dry-run; print what would be written
+  hatch clean [flags]                  remove generated outputs
+  hatch init  [-examples] [-path p]    scaffold .hatch/ (optionally with example files or under a nested scope)
+  hatch new <kind> [-path p] [title]   create a new source file
   hatch version                        print version and exit
   hatch help                           this message
 
-Flags:
-  -targets list  comma-separated target names (default: all)
+Flags (gen/list/clean):
+  -targets list      comma-separated target names (default: all)
+  -no-hatch-skill    skip the auto-injected hatch meta SKILL.md for this run
 
 Registered targets: %s
 `, version, strings.Join(targets.Names(), ", "))
 }
 
-// commonFlags adds the flags shared by generate/list/clean. All subcommands
-// operate on the current working directory.
-func commonFlags(name string, stderr io.Writer) (*flag.FlagSet, *string) {
+// commonFlagSet bundles the flags shared by generate/list/clean. All
+// subcommands operate on the current working directory.
+type commonFlagSet struct {
+	fs           *flag.FlagSet
+	targetsList  *string
+	noHatchSkill *bool
+}
+
+func commonFlags(name string, stderr io.Writer) *commonFlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	targetsList := fs.String("targets", "", "comma-separated target names (default: all)")
-	return fs, targetsList
+	return &commonFlagSet{
+		fs:           fs,
+		targetsList:  fs.String("targets", "", "comma-separated target names (default: all)"),
+		noHatchSkill: fs.Bool("no-hatch-skill", false, "skip the auto-injected hatch meta SKILL.md for this run"),
+	}
 }
 
 // ensureNoPositional returns an error if any positional arguments remain

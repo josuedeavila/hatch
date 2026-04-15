@@ -1,0 +1,179 @@
+package cursor_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/matryer/hatch/pkg/source"
+	"github.com/matryer/hatch/pkg/target"
+	"github.com/matryer/hatch/pkg/target/cursor"
+	"github.com/matryer/is"
+)
+
+func TestGenerate_RootRuleNoApplyTo_AlwaysAppliesMdc(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Rules: []source.Primitive{
+			{Kind: source.KindRule, Name: "style", Body: "Be terse."},
+		},
+	}}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	var rule *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".cursor/rules/style.mdc" {
+			rule = &arts[i]
+		}
+	}
+	is.True(rule != nil) // rule should land at .cursor/rules/<name>.mdc
+	is.Equal(rule.Mode, target.ModeFile)
+	is.True(strings.Contains(rule.Content, "alwaysApply: true"))
+	is.True(strings.Contains(rule.Content, "Be terse."))
+}
+
+func TestGenerate_RootRuleWithApplyTo_GlobsFrontmatter(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Rules: []source.Primitive{
+			{Kind: source.KindRule, Name: "go-rules", ApplyTo: "**/*.go", Body: "Go body."},
+		},
+	}}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	var rule *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".cursor/rules/go-rules.mdc" {
+			rule = &arts[i]
+		}
+	}
+	is.True(rule != nil)
+	is.True(strings.Contains(rule.Content, "globs:"))
+	is.True(strings.Contains(rule.Content, "**/*.go"))
+	is.True(strings.Contains(rule.Content, "alwaysApply: false"))
+}
+
+func TestGenerate_SkillBecomesInlineMdc(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Skills: []source.Primitive{{
+			Kind: source.KindSkill, Name: "review", Description: "Review a PR.", Body: "skill body",
+		}},
+	}}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	var sk *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".cursor/rules/skill-review.mdc" {
+			sk = &arts[i]
+		}
+	}
+	is.True(sk != nil)
+	is.True(strings.Contains(sk.Content, "alwaysApply: true"))
+	is.True(strings.Contains(sk.Content, "description: Review a PR."))
+	is.True(strings.Contains(sk.Content, "skill body"))
+}
+
+func TestGenerate_CommandAndAgentBecomeInlineMdc(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Commands: []source.Primitive{{
+			Kind: source.KindCommand, Name: "commit", Description: "d", Body: "cmd body",
+		}},
+		Agents: []source.Primitive{{
+			Kind: source.KindAgent, Name: "guard", Description: "d", Body: "agent body",
+		}},
+	}}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	paths := map[string]string{}
+	for _, a := range arts {
+		paths[a.Path] = a.Content
+	}
+	is.True(strings.Contains(paths[".cursor/rules/command-commit.mdc"], "cmd body"))
+	is.True(strings.Contains(paths[".cursor/rules/agent-guard.mdc"], "agent body"))
+}
+
+func TestGenerate_ScopedRuleSluggedAndGlobbed(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Rules: []source.Primitive{
+				{Kind: source.KindRule, Name: "style", Body: "BACKEND RULE"},
+			},
+		},
+	}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	var rule *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".cursor/rules/backend-style.mdc" {
+			rule = &arts[i]
+		}
+	}
+	is.True(rule != nil)
+	is.True(strings.Contains(rule.Content, "backend/**"))
+	is.True(strings.Contains(rule.Content, "alwaysApply: false"))
+	is.True(strings.Contains(rule.Content, "BACKEND RULE"))
+	// And no nested .cursor/ tree was emitted.
+	for _, a := range arts {
+		if strings.HasPrefix(a.Path, "backend/") {
+			t.Fatalf("scoped Cursor output must stay at root, got %q", a.Path)
+		}
+	}
+}
+
+func TestGenerate_ScopedRule_AbsoluteApplyToErrors(t *testing.T) {
+	is := is.New(t)
+	for _, glob := range []string{"/etc/foo", "**/foo.go"} {
+		s := &source.Source{Scopes: []source.Scope{
+			{Path: ""},
+			{
+				Path: "backend",
+				Rules: []source.Primitive{{
+					Kind: source.KindRule, Name: "bad", ApplyTo: glob, Body: "x",
+				}},
+			},
+		}}
+		_, err := cursor.New().Generate(s)
+		is.True(err != nil)
+		is.True(strings.Contains(err.Error(), "bad"))
+	}
+}
+
+func TestGenerate_ScopedSkill_LabelInBody(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Skills: []source.Primitive{{
+				Kind: source.KindSkill, Name: "review", Description: "d", Body: "scoped skill body",
+			}},
+		},
+	}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	var sk *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".cursor/rules/skill-backend-review.mdc" {
+			sk = &arts[i]
+		}
+	}
+	is.True(sk != nil)
+	is.True(strings.Contains(sk.Content, "skill: backend/review"))
+	is.True(strings.Contains(sk.Content, "scoped skill body"))
+}
+
+func TestGenerate_RespectsTargetsFilter(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Rules: []source.Primitive{{
+			Kind: source.KindRule, Name: "only-claude", Body: "only-claude", Targets: []string{"claude"},
+		}},
+	}}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	is.Equal(len(arts), 0)
+}

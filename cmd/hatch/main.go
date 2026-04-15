@@ -1,15 +1,14 @@
 // Command hatch generates rules, skills, commands, and agent definitions for
-// multiple coding agents (Claude Code, Codex, Copilot, OpenCode) from a single
-// neutral source tree under `.hatch/`.
+// multiple coding agents (Claude Code, Codex, Copilot, Cursor, OpenCode) from
+// a single neutral source tree under `.hatch/`.
 //
 // Usage:
 //
 //	hatch gen   [-targets list]          write all target outputs
 //	hatch list  [-targets list]          dry-run (print what would be written)
 //	hatch clean [-targets list]          remove generated outputs
-//	hatch init  [-examples]              scaffold .hatch/
-//	hatch new <kind> [title]             create a new source file
-//	hatch meta skill [-targets list]     print or write a SKILL.md about hatch
+//	hatch init  [-examples] [-path p]    scaffold .hatch/ (optionally examples / nested scope)
+//	hatch new <kind> [-path p] [title]   create a new source file
 //	hatch version
 //	hatch help
 package main
@@ -27,6 +26,7 @@ import (
 	"github.com/matryer/hatch/pkg/target/claude"
 	"github.com/matryer/hatch/pkg/target/codex"
 	"github.com/matryer/hatch/pkg/target/copilot"
+	"github.com/matryer/hatch/pkg/target/cursor"
 	"github.com/matryer/hatch/pkg/target/opencode"
 )
 
@@ -46,6 +46,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		claude.New(),
 		codex.New(),
 		copilot.New(),
+		cursor.New(),
 		opencode.New(),
 	)
 	return cli.Run(ctx, version(), targets, args, stdin, stdout, stderr)

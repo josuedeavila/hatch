@@ -22,8 +22,8 @@ func TestBug_AGENTSMdSharedByCodexAndOpenCode(t *testing.T) {
 	// Two rules: one shared by all, one targeting codex only. The
 	// codex-only rule must still appear in AGENTS.md — OpenCode's write
 	// of the same file must not erase it.
-	writeFile(t, ".hatch/rules/shared.md", "SHARED RULE CONTENT\n")
-	writeFile(t, ".hatch/rules/codex-only.md", `---
+	writeFile(t, ".hatch/_rules/shared.md", "SHARED RULE CONTENT\n")
+	writeFile(t, ".hatch/_rules/codex-only.md", `---
 targets: [codex]
 ---
 CODEX ONLY RULE CONTENT

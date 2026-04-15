@@ -31,18 +31,30 @@ func (Target) DisplayName() string { return displayName }
 
 func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
+	for i := range s.Scopes {
+		arts, err := t.generateScope(&s.Scopes[i])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, arts...)
+	}
+	return out, nil
+}
+
+func (t Target) generateScope(sc *source.Scope) ([]target.Artifact, error) {
+	var out []target.Artifact
 
 	// Rules → block inside AGENTS.md (shared with Codex; identical content).
-	if body := target.RulesBlock(s, name, displayName); body != "" {
+	if body := target.RulesBlock(sc, name, displayName); body != "" {
 		out = append(out, target.Artifact{
-			Path:    "AGENTS.md",
+			Path:    target.ScopedPath(sc.Path, "AGENTS.md"),
 			Mode:    target.ModeBlock,
 			Content: body,
 		})
 	}
 
 	// Skills → .opencode/skills/<name>/SKILL.md.
-	for _, sk := range s.Skills {
+	for _, sk := range sc.Skills {
 		if !sk.HasTarget(name) {
 			continue
 		}
@@ -50,7 +62,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if err != nil {
 			return nil, err
 		}
-		dest := filepath.Join(".opencode", "skills", sk.Name)
+		dest := target.ScopedPath(sc.Path, ".opencode", "skills", sk.Name)
 		out = append(out, target.Artifact{
 			Path:    filepath.Join(dest, "SKILL.md"),
 			Mode:    target.ModeFile,
@@ -64,7 +76,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	}
 
 	// Commands → .opencode/commands/<name>.md.
-	for _, c := range s.Commands {
+	for _, c := range sc.Commands {
 		if !c.HasTarget(name) {
 			continue
 		}
@@ -73,14 +85,14 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			return nil, err
 		}
 		out = append(out, target.Artifact{
-			Path:    filepath.Join(".opencode", "commands", c.Name+".md"),
+			Path:    target.ScopedPath(sc.Path, ".opencode", "commands", c.Name+".md"),
 			Mode:    target.ModeFile,
 			Content: content,
 		})
 	}
 
 	// Agents → .opencode/agents/<name>.md.
-	for _, a := range s.Agents {
+	for _, a := range sc.Agents {
 		if !a.HasTarget(name) {
 			continue
 		}
@@ -89,7 +101,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			return nil, err
 		}
 		out = append(out, target.Artifact{
-			Path:    filepath.Join(".opencode", "agents", a.Name+".md"),
+			Path:    target.ScopedPath(sc.Path, ".opencode", "agents", a.Name+".md"),
 			Mode:    target.ModeFile,
 			Content: content,
 		})

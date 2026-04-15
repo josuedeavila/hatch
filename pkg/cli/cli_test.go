@@ -13,6 +13,7 @@ import (
 	"github.com/matryer/hatch/pkg/target/claude"
 	"github.com/matryer/hatch/pkg/target/codex"
 	"github.com/matryer/hatch/pkg/target/copilot"
+	"github.com/matryer/hatch/pkg/target/cursor"
 	"github.com/matryer/hatch/pkg/target/opencode"
 	"github.com/matryer/is"
 )
@@ -23,6 +24,7 @@ func allTargets() *target.Set {
 		claude.New(),
 		codex.New(),
 		copilot.New(),
+		cursor.New(),
 		opencode.New(),
 	)
 }
@@ -53,18 +55,18 @@ func invokeWithCtx(t *testing.T, ctx context.Context, stdin string, args ...stri
 func scaffoldSource(t *testing.T, root string) {
 	t.Helper()
 	files := map[string]string{
-		".hatch/rules/style.md": "Be concise.\n",
-		".hatch/skills/review-pr/SKILL.md": `---
+		".hatch/_rules/style.md": "Be concise.\n",
+		".hatch/_skills/review-pr/SKILL.md": `---
 description: Review a PR.
 ---
 body
 `,
-		".hatch/commands/commit.md": `---
+		".hatch/_commands/commit.md": `---
 description: Commit changes.
 ---
 commit body
 `,
-		".hatch/agents/security.md": `---
+		".hatch/_agents/security.md": `---
 description: Security review.
 ---
 security body

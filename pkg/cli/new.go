@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/matryer/hatch/pkg/source"
 )
 
 // maxSlugLength bounds the filesystem name derived from a title so the
@@ -28,24 +30,33 @@ const maxSlugLength = 60
 // name and the appropriate template is written under .hatch/. After
 // writing, the user is reminded to run `hatch gen`.
 func cmdNew(_ context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("new", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	positional := fs.Args()
-	if len(positional) == 0 {
+	// Consume the kind first so the remaining args can carry the -path
+	// flag in any order — Go's flag.Parse stops at the first non-flag
+	// argument, so we can't put a positional `kind` before flags otherwise.
+	if len(args) == 0 {
 		return errors.New("hatch new: missing kind (one of rule, skill, command, agent)")
 	}
-	kind := positional[0]
+	kind := args[0]
 	tmpl, ok := templates[kind]
 	if !ok {
 		return fmt.Errorf("hatch new: unknown kind %q (want rule, skill, command, or agent)", kind)
 	}
 
+	fs := flag.NewFlagSet("new", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	pathFlag := fs.String("path", "", "create the new primitive under a nested scope path (e.g. backend or services/api)")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	scopePath, err := validatePathFlag(*pathFlag)
+	if err != nil {
+		return err
+	}
+	positional := fs.Args()
+
 	var title string
-	if len(positional) > 1 {
-		title = strings.Join(positional[1:], " ")
+	if len(positional) > 0 {
+		title = strings.Join(positional, " ")
 	} else {
 		prompted, err := promptTitle(kind, stdin, stdout)
 		if err != nil {
@@ -63,7 +74,11 @@ func cmdNew(_ context.Context, args []string, stdin io.Reader, stdout, stderr io
 		return fmt.Errorf("hatch new: %q does not contain any slug characters", title)
 	}
 
-	path := filepath.Join(".hatch", tmpl.pathOf(slug))
+	srcRoot := ".hatch"
+	if scopePath != "" {
+		srcRoot = filepath.Join(srcRoot, filepath.FromSlash(scopePath))
+	}
+	path := filepath.Join(srcRoot, tmpl.pathOf(slug))
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("hatch new: %s already exists", path)
 	}
@@ -90,13 +105,13 @@ type newTemplate struct {
 
 var templates = map[string]newTemplate{
 	"rule": {
-		pathOf: func(slug string) string { return filepath.Join("rules", slug+".md") },
+		pathOf: func(slug string) string { return filepath.Join(source.RulesDir, slug+".md") },
 		render: func(title string) string {
 			return fmt.Sprintf("# %s\n\nDescribe the rule here.\n", title)
 		},
 	},
 	"skill": {
-		pathOf: func(slug string) string { return filepath.Join("skills", slug, "SKILL.md") },
+		pathOf: func(slug string) string { return filepath.Join(source.SkillsDir, slug, "SKILL.md") },
 		render: func(title string) string {
 			return fmt.Sprintf(`---
 description: TODO — one-sentence description of what this skill does.
@@ -109,7 +124,7 @@ Describe the skill body here.
 		},
 	},
 	"command": {
-		pathOf: func(slug string) string { return filepath.Join("commands", slug+".md") },
+		pathOf: func(slug string) string { return filepath.Join(source.CommandsDir, slug+".md") },
 		render: func(title string) string {
 			return fmt.Sprintf(`---
 description: TODO — one-sentence description of what this command does.
@@ -122,7 +137,7 @@ Describe the command body here.
 		},
 	},
 	"agent": {
-		pathOf: func(slug string) string { return filepath.Join("agents", slug+".md") },
+		pathOf: func(slug string) string { return filepath.Join(source.AgentsDir, slug+".md") },
 		render: func(title string) string {
 			return fmt.Sprintf(`---
 description: TODO — one-sentence description of what this agent does.

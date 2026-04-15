@@ -14,6 +14,35 @@ const (
 	KindAgent   Kind = "agent"
 )
 
+// PrimitiveDirPrefix is the leading character that the four hatch primitive
+// container directories share: _rules, _skills, _commands, _agents. The
+// prefix exists to distinguish primitive containers from user-authored path
+// components in a nested .hatch/ tree — a directory at .hatch/backend/_rules/
+// is "the rules of the backend path", whereas .hatch/backend/rules/ would be
+// a path component literally named "rules". Without the prefix the two cases
+// would be ambiguous, especially in monorepos that have legitimate dirs
+// called rules/ or agents/.
+//
+// Only the four exact names below are recognised as primitive containers.
+// Any other directory whose name happens to start with `_` (for example
+// _workflows or _misc) is treated as an ordinary scope path component, the
+// same as a name without the prefix. The README recommends as a soft
+// convention that users avoid `_`-prefixed path components in case future
+// hatch versions introduce new primitive container names, but the walker
+// does not enforce that.
+const PrimitiveDirPrefix = "_"
+
+// Primitive container directory names. These four exact names are the only
+// directory names inside .hatch/ that hatch loads as primitives; every other
+// directory (other than dotted hidden dirs like .git) is a scope path
+// component.
+const (
+	RulesDir    = PrimitiveDirPrefix + "rules"
+	SkillsDir   = PrimitiveDirPrefix + "skills"
+	CommandsDir = PrimitiveDirPrefix + "commands"
+	AgentsDir   = PrimitiveDirPrefix + "agents"
+)
+
 // Primitive is one hatch source file, parsed.
 //
 // For skills, SourcePath points to the skill directory (containing SKILL.md
@@ -43,10 +72,31 @@ func (p *Primitive) HasTarget(name string) bool {
 	return false
 }
 
-// Source is the loaded set of hatch primitives for a project.
-type Source struct {
+// Scope is a group of primitives loaded from one directory under .hatch/.
+// Path is the forward-slash-joined relative path from .hatch/, or "" for
+// the root scope (which is always present, possibly empty).
+type Scope struct {
+	Path     string
 	Rules    []Primitive
 	Skills   []Primitive
 	Commands []Primitive
 	Agents   []Primitive
+}
+
+// Source is the loaded set of hatch primitives for a project, grouped by
+// scope. Scopes are ordered root-first ("" Path), then lexicographically by
+// path. The root scope is always present, possibly empty.
+type Source struct {
+	Scopes []Scope
+}
+
+// Root returns the root scope (the one with empty Path). Always non-nil
+// for a Source produced by Load.
+func (s *Source) Root() *Scope {
+	for i := range s.Scopes {
+		if s.Scopes[i].Path == "" {
+			return &s.Scopes[i]
+		}
+	}
+	return nil
 }

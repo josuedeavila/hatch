@@ -32,26 +32,38 @@ func (Target) DisplayName() string { return displayName }
 
 func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
+	for i := range s.Scopes {
+		arts, err := t.generateScope(&s.Scopes[i])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, arts...)
+	}
+	return out, nil
+}
+
+func (t Target) generateScope(sc *source.Scope) ([]target.Artifact, error) {
+	var out []target.Artifact
 
 	// Codex has no first-class slash-command or sub-agent primitive, so
 	// hatch inlines commands and agents into AGENTS.md alongside the rules
 	// block. The headings tell Codex how to interpret a user request that
 	// matches one of those entries.
 	sections := nonEmpty(
-		target.RulesBlock(s, name, displayName),
-		target.CommandsBlock(s, name, displayName),
-		target.AgentsBlock(s, name, displayName),
+		target.RulesBlock(sc, name, displayName),
+		target.CommandsBlock(sc, name, displayName),
+		target.AgentsBlock(sc, name, displayName),
 	)
 	if len(sections) > 0 {
 		out = append(out, target.Artifact{
-			Path:    "AGENTS.md",
+			Path:    target.ScopedPath(sc.Path, "AGENTS.md"),
 			Mode:    target.ModeBlock,
 			Content: strings.Join(sections, "\n\n"),
 		})
 	}
 
 	// Skills → .agents/skills/<name>/SKILL.md (agentskills.io standard path).
-	for _, sk := range s.Skills {
+	for _, sk := range sc.Skills {
 		if !sk.HasTarget(name) {
 			continue
 		}
@@ -59,7 +71,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if err != nil {
 			return nil, err
 		}
-		dest := filepath.Join(".agents", "skills", sk.Name)
+		dest := target.ScopedPath(sc.Path, ".agents", "skills", sk.Name)
 		out = append(out, target.Artifact{
 			Path:    filepath.Join(dest, "SKILL.md"),
 			Mode:    target.ModeFile,

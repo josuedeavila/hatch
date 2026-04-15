@@ -5,23 +5,22 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/matryer/hatch/pkg/source"
 	"github.com/matryer/hatch/pkg/target"
 )
 
 func cmdList(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
-	fs, targetsList := commonFlags("list", stderr)
-	if err := fs.Parse(args); err != nil {
+	cf := commonFlags("list", stderr)
+	if err := cf.fs.Parse(args); err != nil {
 		return err
 	}
-	if err := ensureNoPositional(fs, "list"); err != nil {
+	if err := ensureNoPositional(cf.fs, "list"); err != nil {
 		return err
 	}
-	targets, err := selectTargets(available, *targetsList)
+	targets, err := selectTargets(available, *cf.targetsList)
 	if err != nil {
 		return err
 	}
-	src, err := source.Load(".")
+	src, err := loadSource(!*cf.noHatchSkill)
 	if err != nil {
 		return err
 	}

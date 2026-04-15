@@ -8,21 +8,32 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/matryer/hatch/pkg/source"
 )
 
-// cmdInit scaffolds `.hatch/` with the four primitive subdirectories. By
-// default the directories are empty; `-examples` additionally writes one
-// example primitive of each kind so a new user can `hatch gen` immediately
-// and see output.
+// cmdInit scaffolds `.hatch/` with the four primitive container
+// subdirectories. By default the directories are empty; `-examples`
+// additionally writes one example primitive of each kind so a new user
+// can `hatch gen` immediately and see output. `-path <relative-path>`
+// scaffolds the dirs under a nested scope (e.g. .hatch/backend/_rules/).
 func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	examples := fs.Bool("examples", false, "also write one example rule, skill, command, and agent")
+	pathFlag := fs.String("path", "", "scaffold under a nested scope path (e.g. backend or services/api)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	scopePath, err := validatePathFlag(*pathFlag)
+	if err != nil {
+		return err
+	}
 	srcRoot := ".hatch"
-	for _, sub := range []string{"rules", "skills", "commands", "agents"} {
+	if scopePath != "" {
+		srcRoot = filepath.Join(srcRoot, filepath.FromSlash(scopePath))
+	}
+	for _, sub := range []string{source.RulesDir, source.SkillsDir, source.CommandsDir, source.AgentsDir} {
 		if err := os.MkdirAll(filepath.Join(srcRoot, sub), 0o755); err != nil {
 			return err
 		}
@@ -40,11 +51,11 @@ func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	seeds := []seed{
 		{
-			path: filepath.Join(srcRoot, "rules", "coding-style.md"),
+			path: filepath.Join(srcRoot, source.RulesDir, "coding-style.md"),
 			body: "Write clean, well-tested Go. Prefer short functions. Use table-driven tests.\n",
 		},
 		{
-			path: filepath.Join(srcRoot, "skills", "review-pr", "SKILL.md"),
+			path: filepath.Join(srcRoot, source.SkillsDir, "review-pr", "SKILL.md"),
 			body: `---
 description: Review an open pull request for correctness, style, and tests.
 ---
@@ -56,7 +67,7 @@ and report findings as: (1) bugs, (2) style nits, (3) missing tests.
 `,
 		},
 		{
-			path: filepath.Join(srcRoot, "commands", "commit.md"),
+			path: filepath.Join(srcRoot, source.CommandsDir, "commit.md"),
 			body: `---
 description: Stage and commit current changes with a generated message.
 ---
@@ -68,7 +79,7 @@ message.
 `,
 		},
 		{
-			path: filepath.Join(srcRoot, "agents", "security-auditor.md"),
+			path: filepath.Join(srcRoot, source.AgentsDir, "security-auditor.md"),
 			body: `---
 description: Review code for common security pitfalls (injection, XSS, auth).
 ---

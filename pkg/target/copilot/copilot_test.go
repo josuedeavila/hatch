@@ -12,11 +12,11 @@ import (
 
 func TestGenerate_UnscopedRulesBlockInCopilotInstructions(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Rules: []source.Primitive{
 			{Kind: source.KindRule, Name: "style", Body: "unscoped body"},
 		},
-	}
+	}}}
 	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
@@ -32,14 +32,14 @@ func TestGenerate_UnscopedRulesBlockInCopilotInstructions(t *testing.T) {
 
 func TestGenerate_ScopedRuleBecomesInstructionsFile(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Rules: []source.Primitive{{
 			Kind:    source.KindRule,
 			Name:    "go-rules",
 			ApplyTo: "**/*.go",
 			Body:    "Go-only rule",
 		}},
-	}
+	}}}
 	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	var inst *target.Artifact
@@ -57,14 +57,14 @@ func TestGenerate_ScopedRuleBecomesInstructionsFile(t *testing.T) {
 
 func TestGenerate_SkillInlinedIntoCopilotInstructionsBlock(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Skills: []source.Primitive{{
 			Kind:        source.KindSkill,
 			Name:        "review-pr",
 			Description: "review prs",
 			Body:        "skill body",
 		}},
-	}
+	}}}
 	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	var blk *target.Artifact
@@ -80,14 +80,14 @@ func TestGenerate_SkillInlinedIntoCopilotInstructionsBlock(t *testing.T) {
 
 func TestGenerate_CommandBecomesPromptFile(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Commands: []source.Primitive{{
 			Kind:        source.KindCommand,
 			Name:        "commit",
 			Description: "commit",
 			Body:        "body",
 		}},
-	}
+	}}}
 	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	found := false
@@ -99,16 +99,192 @@ func TestGenerate_CommandBecomesPromptFile(t *testing.T) {
 	is.True(found)
 }
 
+func TestGenerate_ScopedRule_NoApplyTo_BecomesInstructionsFile(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Rules: []source.Primitive{{
+				Kind: source.KindRule, Name: "style", Body: "Backend rule body.",
+			}},
+		},
+	}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	var inst *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".github/instructions/backend-style.instructions.md" {
+			inst = &arts[i]
+		}
+	}
+	is.True(inst != nil) // scoped rule emitted as a Copilot instructions file
+	is.Equal(inst.Mode, target.ModeFile)
+	is.True(strings.Contains(inst.Content, "applyTo:") &&
+		strings.Contains(inst.Content, "backend/**"))
+	is.True(strings.Contains(inst.Content, "Backend rule body."))
+}
+
+func TestGenerate_ScopedRule_ApplyToPrepended(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Rules: []source.Primitive{{
+				Kind:    source.KindRule,
+				Name:    "go-rules",
+				ApplyTo: "*.go",
+				Body:    "Go body.",
+			}},
+		},
+	}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	var inst *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".github/instructions/backend-go-rules.instructions.md" {
+			inst = &arts[i]
+		}
+	}
+	is.True(inst != nil)
+	is.True(strings.Contains(inst.Content, "applyTo:") &&
+		strings.Contains(inst.Content, "backend/*.go"))
+}
+
+func TestGenerate_ScopedRule_AbsoluteApplyToErrors(t *testing.T) {
+	is := is.New(t)
+	for _, glob := range []string{"/etc/foo", "**/foo.go"} {
+		s := &source.Source{Scopes: []source.Scope{
+			{Path: ""},
+			{
+				Path: "backend",
+				Rules: []source.Primitive{{
+					Kind: source.KindRule, Name: "bad", ApplyTo: glob, Body: "x",
+				}},
+			},
+		}}
+		_, err := copilot.New().Generate(s)
+		is.True(err != nil)
+		is.True(strings.Contains(err.Error(), "bad"))
+	}
+}
+
+func TestGenerate_ScopedSkill_InlinedAtRootWithScopedHeading(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Skills: []source.Primitive{{
+				Kind: source.KindSkill, Name: "review", Description: "d", Body: "scoped skill body",
+			}},
+		},
+	}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	var blk *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".github/copilot-instructions.md" {
+			blk = &arts[i]
+		}
+	}
+	is.True(blk != nil)
+	is.True(strings.Contains(blk.Content, "Skill: backend/review"))
+	is.True(strings.Contains(blk.Content, "scoped skill body"))
+}
+
+func TestGenerate_ScopedCommand_PromptFilenameSlugged(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "services/api",
+			Commands: []source.Primitive{{
+				Kind: source.KindCommand, Name: "deploy", Description: "d", Body: "b",
+			}},
+		},
+	}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	found := false
+	for _, a := range arts {
+		if a.Path == ".github/prompts/services-api-deploy.prompt.md" {
+			found = true
+		}
+	}
+	is.True(found)
+}
+
+func TestGenerate_ScopedAgent_FilenameSlugged(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{Path: ""},
+		{
+			Path: "backend",
+			Agents: []source.Primitive{{
+				Kind: source.KindAgent, Name: "guard", Description: "d", Body: "b",
+			}},
+		},
+	}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	found := false
+	for _, a := range arts {
+		if a.Path == ".github/agents/backend-guard.agent.md" {
+			found = true
+		}
+	}
+	is.True(found)
+}
+
+func TestGenerate_RootCopilotBlockUnchangedByScopedRules(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{
+		{
+			Path: "",
+			Rules: []source.Primitive{
+				{Kind: source.KindRule, Name: "global", Body: "GLOBAL ROOT RULE"},
+			},
+		},
+		{
+			Path: "backend",
+			Rules: []source.Primitive{
+				{Kind: source.KindRule, Name: "scoped", Body: "BACKEND SCOPED RULE"},
+			},
+		},
+	}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	var blk *target.Artifact
+	for i := range arts {
+		if arts[i].Path == ".github/copilot-instructions.md" {
+			blk = &arts[i]
+		}
+	}
+	is.True(blk != nil)
+	is.True(strings.Contains(blk.Content, "GLOBAL ROOT RULE"))
+	is.True(!strings.Contains(blk.Content, "BACKEND SCOPED RULE"))
+	// And there should be exactly one copilot-instructions.md across all scopes.
+	count := 0
+	for _, a := range arts {
+		if a.Path == ".github/copilot-instructions.md" {
+			count++
+		}
+	}
+	is.Equal(count, 1)
+}
+
 func TestGenerate_AgentBecomesAgentFile(t *testing.T) {
 	is := is.New(t)
-	s := &source.Source{
+	s := &source.Source{Scopes: []source.Scope{{
 		Agents: []source.Primitive{{
 			Kind:        source.KindAgent,
 			Name:        "security",
 			Description: "d",
 			Body:        "body",
 		}},
-	}
+	}}}
 	arts, err := copilot.New().Generate(s)
 	is.NoErr(err)
 	found := false

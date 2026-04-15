@@ -32,18 +32,30 @@ func (Target) DisplayName() string { return displayName }
 
 func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
+	for i := range s.Scopes {
+		arts, err := t.generateScope(&s.Scopes[i])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, arts...)
+	}
+	return out, nil
+}
+
+func (t Target) generateScope(sc *source.Scope) ([]target.Artifact, error) {
+	var out []target.Artifact
 
 	// Rules → block inside CLAUDE.md.
-	if body := target.RulesBlock(s, name, displayName); body != "" {
+	if body := target.RulesBlock(sc, name, displayName); body != "" {
 		out = append(out, target.Artifact{
-			Path:    "CLAUDE.md",
+			Path:    target.ScopedPath(sc.Path, "CLAUDE.md"),
 			Mode:    target.ModeBlock,
 			Content: body,
 		})
 	}
 
 	// Skills → .claude/skills/<name>/SKILL.md (+ sibling assets).
-	for _, sk := range s.Skills {
+	for _, sk := range sc.Skills {
 		if !sk.HasTarget(name) {
 			continue
 		}
@@ -51,13 +63,14 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 		if err != nil {
 			return nil, err
 		}
+		skillDir := target.ScopedPath(sc.Path, ".claude", "skills", sk.Name)
 		out = append(out, target.Artifact{
-			Path:    filepath.Join(".claude", "skills", sk.Name, "SKILL.md"),
+			Path:    filepath.Join(skillDir, "SKILL.md"),
 			Mode:    target.ModeFile,
 			Content: content,
 		})
 		// Sibling asset files copy through verbatim.
-		assets, err := target.CopySkillAssets(sk, filepath.Join(".claude", "skills", sk.Name))
+		assets, err := target.CopySkillAssets(sk, skillDir)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +78,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	}
 
 	// Commands → .claude/commands/<name>.md.
-	for _, c := range s.Commands {
+	for _, c := range sc.Commands {
 		if !c.HasTarget(name) {
 			continue
 		}
@@ -74,14 +87,14 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			return nil, err
 		}
 		out = append(out, target.Artifact{
-			Path:    filepath.Join(".claude", "commands", c.Name+".md"),
+			Path:    target.ScopedPath(sc.Path, ".claude", "commands", c.Name+".md"),
 			Mode:    target.ModeFile,
 			Content: content,
 		})
 	}
 
 	// Agents → .claude/agents/<name>.md.
-	for _, a := range s.Agents {
+	for _, a := range sc.Agents {
 		if !a.HasTarget(name) {
 			continue
 		}
@@ -90,7 +103,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			return nil, err
 		}
 		out = append(out, target.Artifact{
-			Path:    filepath.Join(".claude", "agents", a.Name+".md"),
+			Path:    target.ScopedPath(sc.Path, ".claude", "agents", a.Name+".md"),
 			Mode:    target.ModeFile,
 			Content: content,
 		})

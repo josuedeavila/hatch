@@ -2,15 +2,20 @@ package source
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 )
 
-// Load walks `<root>/.hatch/` and returns a populated Source. Source
-// primitives live in subdirectories (rules/, skills/, commands/, agents/)
-// directly under `.hatch/`; any other files are ignored.
+// Load walks `<root>/.hatch/` and returns a populated Source. Each
+// directory under .hatch/ that contains at least one of the four
+// primitive container subdirectories (_rules/, _skills/, _commands/,
+// _agents/) becomes a Scope; the path between .hatch/ and the
+// primitive container becomes the Scope's Path (forward-slash joined,
+// "" for the root). The returned Source always contains at least the
+// root scope, even if empty.
 func Load(root string) (*Source, error) {
 	srcRoot := filepath.Join(root, ".hatch")
 	info, err := os.Stat(srcRoot)
@@ -21,29 +26,97 @@ func Load(root string) (*Source, error) {
 		return nil, fmt.Errorf("%s is not a directory", srcRoot)
 	}
 
-	s := &Source{}
+	s := &Source{Scopes: []Scope{{Path: ""}}}
 
-	if err := loadFlatDir(s, filepath.Join(srcRoot, "rules"), KindRule); err != nil {
-		return nil, err
-	}
-	if err := loadFlatDir(s, filepath.Join(srcRoot, "commands"), KindCommand); err != nil {
-		return nil, err
-	}
-	if err := loadFlatDir(s, filepath.Join(srcRoot, "agents"), KindAgent); err != nil {
-		return nil, err
-	}
-	if err := loadSkillsDir(s, filepath.Join(srcRoot, "skills")); err != nil {
+	// Always load the root scope's primitive containers up front, so the
+	// root scope is populated even if it has no nested siblings.
+	if err := loadScope(&s.Scopes[0], srcRoot); err != nil {
 		return nil, err
 	}
 
-	sortByName(s.Rules)
-	sortByName(s.Skills)
-	sortByName(s.Commands)
-	sortByName(s.Agents)
+	// Walk the rest of .hatch/ looking for nested scopes. A nested scope
+	// is any directory that contains at least one of the four primitive
+	// container subdirectories.
+	err = filepath.WalkDir(srcRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == srcRoot {
+			return nil
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		// The four known primitive container names are loaded by their
+		// parent scope's loadScope call. Never recurse inside them — this
+		// also prevents pathological layouts like _rules/nested/_rules.
+		if name == RulesDir || name == SkillsDir || name == CommandsDir || name == AgentsDir {
+			return filepath.SkipDir
+		}
+		// Hidden directories (`.git`, `.cache`, etc.) are ignored.
+		if strings.HasPrefix(name, ".") {
+			return filepath.SkipDir
+		}
+
+		rel, relErr := filepath.Rel(srcRoot, path)
+		if relErr != nil {
+			return relErr
+		}
+		scopePath := filepath.ToSlash(rel)
+
+		nested := Scope{Path: scopePath}
+		if err := loadScope(&nested, path); err != nil {
+			return err
+		}
+		// Only register the scope if it actually loaded any primitives.
+		// Pure passthrough containers (e.g. .hatch/services/ when only
+		// services/api/ and services/web/ have primitives) are dropped.
+		if len(nested.Rules) > 0 || len(nested.Skills) > 0 || len(nested.Commands) > 0 || len(nested.Agents) > 0 {
+			s.Scopes = append(s.Scopes, nested)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort: root scope first, then lexicographic by Path. Within each
+	// scope, sort each primitive slice by name.
+	sort.SliceStable(s.Scopes, func(i, j int) bool {
+		if s.Scopes[i].Path == "" {
+			return true
+		}
+		if s.Scopes[j].Path == "" {
+			return false
+		}
+		return s.Scopes[i].Path < s.Scopes[j].Path
+	})
+	for i := range s.Scopes {
+		sortByName(s.Scopes[i].Rules)
+		sortByName(s.Scopes[i].Skills)
+		sortByName(s.Scopes[i].Commands)
+		sortByName(s.Scopes[i].Agents)
+	}
 	return s, nil
 }
 
-func loadFlatDir(src *Source, dir string, kind Kind) error {
+// loadScope loads any primitive containers found directly under dir into
+// sc. Missing containers are silently skipped (they're optional).
+func loadScope(sc *Scope, dir string) error {
+	if err := loadFlatDir(sc, filepath.Join(dir, RulesDir), KindRule); err != nil {
+		return err
+	}
+	if err := loadFlatDir(sc, filepath.Join(dir, CommandsDir), KindCommand); err != nil {
+		return err
+	}
+	if err := loadFlatDir(sc, filepath.Join(dir, AgentsDir), KindAgent); err != nil {
+		return err
+	}
+	return loadSkillsDir(sc, filepath.Join(dir, SkillsDir))
+}
+
+func loadFlatDir(sc *Scope, dir string, kind Kind) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -70,17 +143,17 @@ func loadFlatDir(src *Source, dir string, kind Kind) error {
 		}
 		switch kind {
 		case KindRule:
-			src.Rules = append(src.Rules, p)
+			sc.Rules = append(sc.Rules, p)
 		case KindCommand:
-			src.Commands = append(src.Commands, p)
+			sc.Commands = append(sc.Commands, p)
 		case KindAgent:
-			src.Agents = append(src.Agents, p)
+			sc.Agents = append(sc.Agents, p)
 		}
 	}
 	return nil
 }
 
-func loadSkillsDir(src *Source, dir string) error {
+func loadSkillsDir(sc *Scope, dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -105,7 +178,7 @@ func loadSkillsDir(src *Source, dir string) error {
 		if p.Name == "" {
 			p.Name = e.Name()
 		}
-		src.Skills = append(src.Skills, p)
+		sc.Skills = append(sc.Skills, p)
 	}
 	return nil
 }

@@ -16,7 +16,7 @@ func TestNew_RuleWithTitleArg(t *testing.T) {
 	stdout, _, err := invoke(t, "new", "rule", "My Rule")
 	is.NoErr(err)
 
-	path := ".hatch/rules/my-rule.md"
+	path := ".hatch/_rules/my-rule.md"
 	_, err = os.Stat(path)
 	is.NoErr(err)
 
@@ -38,7 +38,7 @@ func TestNew_SkillCreatesDirectoryWithSKILLMd(t *testing.T) {
 	_, _, err := invoke(t, "new", "skill", "Review PR")
 	is.NoErr(err)
 
-	body, err := os.ReadFile(".hatch/skills/review-pr/SKILL.md")
+	body, err := os.ReadFile(".hatch/_skills/review-pr/SKILL.md")
 	is.NoErr(err)
 	is.True(strings.Contains(string(body), "description:"))
 	is.True(strings.Contains(string(body), "# Review PR"))
@@ -51,7 +51,7 @@ func TestNew_CommandFile(t *testing.T) {
 
 	_, _, err := invoke(t, "new", "command", "Commit Changes")
 	is.NoErr(err)
-	_, err = os.Stat(".hatch/commands/commit-changes.md")
+	_, err = os.Stat(".hatch/_commands/commit-changes.md")
 	is.NoErr(err)
 }
 
@@ -62,7 +62,7 @@ func TestNew_AgentFile(t *testing.T) {
 
 	_, _, err := invoke(t, "new", "agent", "Security Auditor")
 	is.NoErr(err)
-	_, err = os.Stat(".hatch/agents/security-auditor.md")
+	_, err = os.Stat(".hatch/_agents/security-auditor.md")
 	is.NoErr(err)
 }
 
@@ -75,7 +75,7 @@ func TestNew_MultiWordTitleAsSeparateArgs(t *testing.T) {
 
 	_, _, err := invoke(t, "new", "rule", "my", "new", "rule")
 	is.NoErr(err)
-	_, err = os.Stat(".hatch/rules/my-new-rule.md")
+	_, err = os.Stat(".hatch/_rules/my-new-rule.md")
 	is.NoErr(err)
 }
 
@@ -87,8 +87,30 @@ func TestNew_PromptsForTitleWhenMissing(t *testing.T) {
 	stdout, _, err := invokeWithStdin(t, "My Prompted Rule\n", "new", "rule")
 	is.NoErr(err)
 	is.True(strings.Contains(stdout, "rule name:"))
-	_, err = os.Stat(".hatch/rules/my-prompted-rule.md")
+	_, err = os.Stat(".hatch/_rules/my-prompted-rule.md")
 	is.NoErr(err)
+}
+
+func TestNew_PathFlag_WritesUnderNestedDir(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "new", "rule", "-path", "backend", "Always Test")
+	is.NoErr(err)
+	_, err = os.Stat(".hatch/backend/_rules/always-test.md")
+	is.NoErr(err)
+}
+
+func TestNew_PathFlag_RejectsTraversalAndReserved(t *testing.T) {
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	for _, p := range []string{"../foo", "/abs", "_rules", "_skills"} {
+		_, _, err := invoke(t, "new", "rule", "-path", p, "title")
+		is.True(err != nil)
+	}
 }
 
 func TestNew_RefusesToOverwriteExisting(t *testing.T) {

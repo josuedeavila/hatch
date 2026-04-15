@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -154,6 +155,91 @@ func TestGen_RespectsCanceledContext(t *testing.T) {
 	// Nothing should have been written.
 	_, err = os.Stat("CLAUDE.md")
 	is.True(os.IsNotExist(err))
+}
+
+func TestGen_NestedPath_EndToEnd(t *testing.T) {
+	// Two scopes: root and backend. Each has every primitive type. After
+	// `hatch gen`, both root-level and backend/-prefixed outputs should
+	// exist for Claude/Codex/OpenCode; Copilot's scoped rule should land
+	// at .github/instructions/backend-<name>.instructions.md (not under
+	// backend/.github/, which Copilot wouldn't read).
+	is := is.New(t)
+	dir := t.TempDir()
+	files := map[string]string{
+		".hatch/_rules/global.md":               "GLOBAL RULE\n",
+		".hatch/backend/_rules/api.md":          "BACKEND RULE\n",
+		".hatch/backend/_skills/check/SKILL.md": "---\ndescription: check\n---\nbody\n",
+	}
+	for path, body := range files {
+		full := dir + "/" + path
+		is.NoErr(os.MkdirAll(filepath.Dir(full), 0o755))
+		is.NoErr(os.WriteFile(full, []byte(body), 0o644))
+	}
+	t.Chdir(dir)
+
+	_, _, err := invoke(t, "gen")
+	is.NoErr(err)
+
+	// Root-level files contain the global rule and not the backend one.
+	root, err := os.ReadFile("CLAUDE.md")
+	is.NoErr(err)
+	is.True(strings.Contains(string(root), "GLOBAL RULE"))
+	is.True(!strings.Contains(string(root), "BACKEND RULE"))
+
+	// Backend-prefixed files contain the backend rule and not the global one.
+	beClaude, err := os.ReadFile("backend/CLAUDE.md")
+	is.NoErr(err)
+	is.True(strings.Contains(string(beClaude), "BACKEND RULE"))
+	is.True(!strings.Contains(string(beClaude), "GLOBAL RULE"))
+
+	beAgents, err := os.ReadFile("backend/AGENTS.md")
+	is.NoErr(err)
+	is.True(strings.Contains(string(beAgents), "BACKEND RULE"))
+
+	// Backend skill landed under backend/.claude/skills/.
+	_, err = os.Stat("backend/.claude/skills/check/SKILL.md")
+	is.NoErr(err)
+
+	// Copilot routed the scoped rule to a root .github/instructions file
+	// with applyTo: backend/**, not backend/.github/.
+	cp, err := os.ReadFile(".github/instructions/backend-api.instructions.md")
+	is.NoErr(err)
+	is.True(strings.Contains(string(cp), "backend/**"))
+	is.True(strings.Contains(string(cp), "BACKEND RULE"))
+
+	// No backend/.github tree should have been written.
+	_, err = os.Stat("backend/.github")
+	is.True(os.IsNotExist(err))
+}
+
+func TestGen_OutputIncludesBlockLineRange(t *testing.T) {
+	// Block-mode writes should report the line range where the block
+	// ended up, so a reader can jump straight to it in their editor.
+	// File-mode writes keep the short `(file)` form.
+	is := is.New(t)
+	dir := t.TempDir()
+	scaffoldSource(t, dir)
+	t.Chdir(dir)
+
+	// Pre-seed CLAUDE.md with a few lines of user content so the block
+	// lands on a non-trivial line range.
+	is.NoErr(os.WriteFile("CLAUDE.md", []byte("# Notes\n\nuser line one\nuser line two\n"), 0o644))
+
+	stdout, _, err := invoke(t, "gen")
+	is.NoErr(err)
+
+	// File mode keeps the simple form.
+	is.True(strings.Contains(stdout, ".claude/skills/review-pr/SKILL.md (file)"))
+
+	// Block mode: "(lines N-M)". Exact line numbers depend on content
+	// length, but the prefix and the general shape must match.
+	var sawBlock bool
+	for _, line := range strings.Split(stdout, "\n") {
+		if strings.HasPrefix(line, "wrote CLAUDE.md (lines ") && strings.HasSuffix(line, ")") {
+			sawBlock = true
+		}
+	}
+	is.True(sawBlock) // wrote CLAUDE.md line should include the block's line range
 }
 
 func TestGen_LegacyGenerateWordRemoved(t *testing.T) {
