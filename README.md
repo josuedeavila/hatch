@@ -35,9 +35,19 @@ Edit files under `.hatch/_rules/`, `.hatch/_skills/`, `.hatch/_commands/`,
 or `.hatch/_agents/`, then re-run `hatch gen`. Commit the `.hatch/` source
 *and* the generated files together.
 
-Use `hatch new <kind> [title]` to scaffold a new source file, `hatch list`
-to preview what `gen` would write, and `hatch clean` to remove everything
-hatch generated.
+## CLI
+
+| Command                              | What it does                                                    |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `hatch init [-examples] [-path p]`   | scaffold `.hatch/` (optionally with example files or nested)    |
+| `hatch new <kind> [-path p] [title]` | create a new rule, skill, command, or agent from a template     |
+| `hatch gen [-targets list]`          | write every target's native files                               |
+| `hatch list [-targets list]`         | dry-run; print what `gen` would write                           |
+| `hatch clean [-targets list]`        | remove everything hatch generated                               |
+| `hatch version`, `hatch help`        | print version / usage                                           |
+
+See [docs/cli.md](docs/cli.md) for full flag reference, including
+`-no-hatch-skill` and the auto-injected meta skill.
 
 ## Docs
 
