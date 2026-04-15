@@ -4,9 +4,9 @@
 //
 // Usage:
 //
-//	hatch gen   [-targets list]          write all target outputs
-//	hatch list  [-targets list]          dry-run (print what would be written)
-//	hatch clean [-targets list]          remove generated outputs
+//	hatch gen   [-targets names]          write all target outputs
+//	hatch list  [-targets names]          dry-run (print what would be written)
+//	hatch clean [-targets names]          remove generated outputs
 //	hatch init  [-examples] [-path p]    scaffold .hatch/ (optionally examples / nested scope)
 //	hatch new <kind> [-path p] [title]   create a new source file
 //	hatch version

@@ -3,7 +3,7 @@
 All subcommands operate on the current working directory — `cd` into your
 project first. Every command is safe to re-run.
 
-## `hatch init [-examples] [-path <relative-path>]`
+## hatch init
 
 Scaffolds a `.hatch/` source tree with the four primitive container
 subdirectories (`_rules/`, `_skills/`, `_commands/`, `_agents/`).
@@ -19,7 +19,7 @@ hatch init -path backend      # → .hatch/backend/_rules/, _skills/, _commands/
 
 Existing files are left alone.
 
-## `hatch new <kind> [-path <relative-path>] [title]`
+## hatch new
 
 Creates a single new source file from a template. `kind` is one of `rule`,
 `skill`, `command`, or `agent`. The title is slugged into a filesystem-safe
@@ -37,7 +37,7 @@ hatch new rule -path backend "Database style" # → .hatch/backend/_rules/databa
 Skill, command, and agent templates include a `description:` frontmatter
 field pre-filled with a `TODO` — fill it in before running `hatch gen`.
 
-## `hatch gen [-targets list] [-no-hatch-skill]`
+## hatch gen
 
 Reads `.hatch/` and writes the native files each coding agent expects.
 With no flags, every registered target is generated. Narrow the run with
@@ -61,7 +61,7 @@ wrote AGENTS.md:1-3
 ...
 ```
 
-## `hatch list [-targets list] [-no-hatch-skill]`
+## hatch list
 
 Dry-run: prints every path `hatch gen` would write, without touching the
 filesystem. Useful for previewing changes before committing, or in CI to
@@ -72,7 +72,7 @@ hatch list
 hatch list -targets claude
 ```
 
-## `hatch clean [-targets list] [-no-hatch-skill]`
+## hatch clean
 
 Removes everything hatch generated. File-owned outputs are deleted;
 the hatch-managed block is stripped from block-injected files (and the
@@ -89,7 +89,7 @@ is structured. Two ways to customise:
   version wins.
 - **Opt out** — pass `-no-hatch-skill` to `gen`, `list`, and `clean`.
 
-## `hatch version`, `hatch help`
+## hatch version and help
 
 Print the version or the built-in usage summary. `-v`/`--version` and
 `-h`/`--help` are accepted as aliases.

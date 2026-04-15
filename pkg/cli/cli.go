@@ -64,7 +64,7 @@ Usage:
   hatch help                           this message
 
 Flags (gen/list/clean):
-  -targets list      comma-separated target names (default: all)
+  -targets names     comma-separated target names (default: all)
   -no-hatch-skill    skip the auto-injected hatch meta SKILL.md for this run
 
 Registered targets: %s
