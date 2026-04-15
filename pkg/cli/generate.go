@@ -78,19 +78,18 @@ func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, s
 }
 
 // formatWroteLine builds the one-line `wrote ...` status message that
-// hatch gen prints for each artifact. File-mode writes show the simple
-// `(file)` suffix; block-mode writes show the line range where the
-// block ended up, so the user can jump straight to it in their editor.
-// The marker name itself is omitted because it's always the same.
+// hatch gen prints for each artifact. Block-mode writes use the
+// editor-jumpable `path:begin-end` notation so the user can click
+// straight into the hatch block; file-mode writes print just the path.
 func formatWroteLine(a target.Artifact) string {
 	if a.Mode != target.ModeBlock {
-		return fmt.Sprintf("wrote %s (%s)", a.Path, a.Mode)
+		return fmt.Sprintf("wrote %s", a.Path)
 	}
 	begin, end, ok := findBlockLineRange(a.Path, block.CurrentMarker)
 	if !ok {
-		return fmt.Sprintf("wrote %s (%s)", a.Path, a.Mode)
+		return fmt.Sprintf("wrote %s", a.Path)
 	}
-	return fmt.Sprintf("wrote %s (lines %d-%d)", a.Path, begin, end)
+	return fmt.Sprintf("wrote %s:%d-%d", a.Path, begin, end)
 }
 
 // findBlockLineRange returns the 1-indexed line numbers of the begin

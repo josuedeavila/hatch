@@ -214,8 +214,8 @@ func TestGen_NestedPath_EndToEnd(t *testing.T) {
 
 func TestGen_OutputIncludesBlockLineRange(t *testing.T) {
 	// Block-mode writes should report the line range where the block
-	// ended up, so a reader can jump straight to it in their editor.
-	// File-mode writes keep the short `(file)` form.
+	// ended up, in the editor-jumpable `path:begin-end` notation.
+	// File-mode writes print just the path.
 	is := is.New(t)
 	dir := t.TempDir()
 	scaffoldSource(t, dir)
@@ -228,18 +228,18 @@ func TestGen_OutputIncludesBlockLineRange(t *testing.T) {
 	stdout, _, err := invoke(t, "gen")
 	is.NoErr(err)
 
-	// File mode keeps the simple form.
-	is.True(strings.Contains(stdout, ".claude/skills/review-pr/SKILL.md (file)"))
+	// File mode: bare path, no suffix.
+	is.True(strings.Contains(stdout, "wrote .claude/skills/review-pr/SKILL.md\n"))
 
-	// Block mode: "(lines N-M)". Exact line numbers depend on content
-	// length, but the prefix and the general shape must match.
+	// Block mode: "wrote CLAUDE.md:N-M". Exact line numbers depend on
+	// content length, but the prefix and the general shape must match.
 	var sawBlock bool
 	for _, line := range strings.Split(stdout, "\n") {
-		if strings.HasPrefix(line, "wrote CLAUDE.md (lines ") && strings.HasSuffix(line, ")") {
+		if strings.HasPrefix(line, "wrote CLAUDE.md:") && strings.Contains(line, "-") {
 			sawBlock = true
 		}
 	}
-	is.True(sawBlock) // wrote CLAUDE.md line should include the block's line range
+	is.True(sawBlock) // wrote CLAUDE.md line should use path:begin-end notation
 }
 
 func TestGen_LegacyGenerateWordRemoved(t *testing.T) {
