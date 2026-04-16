@@ -71,7 +71,3 @@ See [docs/cli.md](docs/cli.md) for the full flag reference, including
 - [Feature support](docs/features.md) — what each target natively supports and how hatch emulates the gaps
 - [Targets and output mapping](docs/targets.md) — per-agent file locations and nested-scope routing
 - [Development](docs/development.md) — build and test the hatch binary itself
-
-## License
-
-MIT — see `LICENSE`.
