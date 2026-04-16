@@ -99,6 +99,32 @@ func TestGenerate_CommandBecomesPromptFile(t *testing.T) {
 	is.True(found)
 }
 
+func TestGenerate_NamespacedCommandPromptFilenameFlattened(t *testing.T) {
+	// Copilot has no namespace support on prompt files. A source command
+	// named "opsx/apply" flattens to opsx-apply.prompt.md at the root.
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Commands: []source.Primitive{{
+			Kind:        source.KindCommand,
+			Name:        "opsx/apply",
+			Description: "apply",
+			Body:        "body",
+		}},
+	}}}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	found := false
+	for _, a := range arts {
+		if a.Path == ".github/prompts/opsx-apply.prompt.md" {
+			found = true
+		}
+		if a.Path == ".github/prompts/opsx/apply.prompt.md" {
+			t.Fatalf("namespaced filename leaked through: %s", a.Path)
+		}
+	}
+	is.True(found)
+}
+
 func TestGenerate_ScopedRule_NoApplyTo_BecomesInstructionsFile(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

@@ -107,7 +107,7 @@ func loadScope(sc *Scope, dir string) error {
 	if err := loadFlatDir(sc, filepath.Join(dir, RulesDir), KindRule); err != nil {
 		return err
 	}
-	if err := loadFlatDir(sc, filepath.Join(dir, CommandsDir), KindCommand); err != nil {
+	if err := loadCommandsDir(sc, filepath.Join(dir, CommandsDir)); err != nil {
 		return err
 	}
 	if err := loadFlatDir(sc, filepath.Join(dir, AgentsDir), KindAgent); err != nil {
@@ -151,6 +151,51 @@ func loadFlatDir(sc *Scope, dir string, kind Kind) error {
 		}
 	}
 	return nil
+}
+
+// loadCommandsDir loads every .md file under dir, recursing into
+// subdirectories. The relative path from dir (minus the .md suffix,
+// forward-slashed) becomes the command's Name, so
+// `_commands/opsx/apply.md` loads with Name="opsx/apply". This mirrors
+// Claude Code's namespaced-commands filesystem layout; targets that
+// cannot express namespaces flatten the slash at render time.
+func loadCommandsDir(sc *Scope, dir string) error {
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, werr error) error {
+		if werr != nil {
+			return werr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(d.Name(), ".md") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		derived := strings.TrimSuffix(filepath.ToSlash(rel), ".md")
+		p, err := parsePrimitive(KindCommand, derived, path, data)
+		if err != nil {
+			return err
+		}
+		if p.Name == "" {
+			p.Name = derived
+		}
+		sc.Commands = append(sc.Commands, p)
+		return nil
+	})
 }
 
 func loadSkillsDir(sc *Scope, dir string) error {

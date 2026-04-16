@@ -93,6 +93,26 @@ func TestGenerate_CommandAndAgentBecomeInlineMdc(t *testing.T) {
 	is.True(strings.Contains(paths[".cursor/rules/agent-guard.mdc"], "agent body"))
 }
 
+func TestGenerate_NamespacedCommandFilenameFlattened(t *testing.T) {
+	// Cursor's command- prefix convention can't carry a namespace, so a
+	// source command named "opsx/apply" renders as
+	// .cursor/rules/command-opsx-apply.mdc (slash → dash).
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Commands: []source.Primitive{{
+			Kind: source.KindCommand, Name: "opsx/apply", Description: "d", Body: "apply body",
+		}},
+	}}}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	paths := map[string]bool{}
+	for _, a := range arts {
+		paths[a.Path] = true
+	}
+	is.True(paths[".cursor/rules/command-opsx-apply.mdc"])
+	is.True(!paths[".cursor/rules/command-opsx/apply.mdc"])
+}
+
 func TestGenerate_ScopedRuleSluggedAndGlobbed(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

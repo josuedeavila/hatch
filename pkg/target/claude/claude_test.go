@@ -100,6 +100,33 @@ func TestGenerate_CommandBecomesDotClaudeCommand(t *testing.T) {
 	is.True(found)
 }
 
+func TestGenerate_NamespacedCommandPreservesSubdirectory(t *testing.T) {
+	// Claude Code reads .claude/commands/<ns>/<name>.md and presents it as
+	// the slash command /<ns>:<name>. The hatch source name carries the
+	// forward slash ("opsx/apply") and Claude is the one target that
+	// preserves that subdirectory verbatim; other targets flatten it.
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Commands: []source.Primitive{{
+			Kind:        source.KindCommand,
+			Name:        "opsx/apply",
+			Description: "Apply an opsx change.",
+			Body:        "body\n",
+		}},
+	}}}
+	arts, err := claude.New().Generate(s)
+	is.NoErr(err)
+	found := false
+	for _, a := range arts {
+		if a.Path == ".claude/commands/opsx/apply.md" {
+			found = true
+			is.Equal(a.Mode, target.ModeFile)
+			is.True(strings.Contains(a.Content, "name: opsx/apply"))
+		}
+	}
+	is.True(found)
+}
+
 func TestGenerate_AgentBecomesDotClaudeAgent(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{{

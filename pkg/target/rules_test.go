@@ -59,6 +59,23 @@ func TestRulesBlock_BodyTemplateSubstitution(t *testing.T) {
 	is.True(strings.Contains(out, "Use Claude Code wisely."))
 }
 
+func TestCommandsBlock_FlattensNamespacedHeading(t *testing.T) {
+	// Codex (and any other target that inlines commands through
+	// CommandsBlock) has no concept of namespaces. A source command named
+	// "opsx/apply" must appear in the inlined heading as "opsx-apply" so
+	// that a user asking the agent "run opsx-apply" matches the section
+	// header.
+	is := is.New(t)
+	sc := &source.Scope{
+		Commands: []source.Primitive{
+			{Kind: source.KindCommand, Name: "opsx/apply", Description: "d", Body: "body"},
+		},
+	}
+	out := target.CommandsBlock(sc, "codex", "Codex")
+	is.True(strings.Contains(out, "### Command: opsx-apply"))
+	is.True(!strings.Contains(out, "opsx/apply"))
+}
+
 func TestSkillsBlock_RendersSkillSections(t *testing.T) {
 	is := is.New(t)
 	sc := &source.Scope{

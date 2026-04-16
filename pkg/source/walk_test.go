@@ -79,6 +79,29 @@ func TestLoad_CommandsAndAgents(t *testing.T) {
 	is.Equal(src.Root().Agents[0].Name, "security")
 }
 
+func TestLoad_NamespacedCommands(t *testing.T) {
+	// Claude Code supports namespaced slash commands via subdirectories under
+	// .claude/commands/ (e.g. .claude/commands/opsx/apply.md → /opsx:apply).
+	// To express that in hatch source, `_commands/<ns>/<name>.md` must load
+	// with Name="<ns>/<name>". Flat files in the same _commands/ dir stay
+	// unnamespaced.
+	is := is.New(t)
+	dir := t.TempDir()
+	writeTree(t, dir, map[string]string{
+		".hatch/_commands/commit.md":      "---\ndescription: c\n---\nflat body\n",
+		".hatch/_commands/opsx/apply.md":  "---\ndescription: apply\n---\napply body\n",
+		".hatch/_commands/opsx/verify.md": "---\ndescription: verify\n---\nverify body\n",
+	})
+	src, err := source.Load(dir)
+	is.NoErr(err)
+	is.Equal(len(src.Root().Commands), 3)
+	// Sorted by name lexicographically: commit, opsx/apply, opsx/verify.
+	is.Equal(src.Root().Commands[0].Name, "commit")
+	is.Equal(src.Root().Commands[1].Name, "opsx/apply")
+	is.Equal(src.Root().Commands[2].Name, "opsx/verify")
+	is.Equal(src.Root().Commands[1].Description, "apply")
+}
+
 func TestLoad_IgnoresNonMarkdownFiles(t *testing.T) {
 	is := is.New(t)
 	dir := t.TempDir()

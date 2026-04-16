@@ -87,7 +87,7 @@ func inlinePrimitives(items []source.Primitive, sectionTitle, itemLabel, targetN
 		buf.WriteString("\n### ")
 		buf.WriteString(itemLabel)
 		buf.WriteString(": ")
-		buf.WriteString(p.Name)
+		buf.WriteString(FlatName(p.Name))
 		buf.WriteString("\n\n")
 		if p.Description != "" {
 			buf.WriteString("_")
@@ -98,6 +98,17 @@ func inlinePrimitives(items []source.Primitive, sectionTitle, itemLabel, targetN
 		buf.WriteString("\n")
 	}
 	return strings.TrimRight(buf.String(), "\n")
+}
+
+// FlatName collapses a namespaced name like "opsx/apply" into a flat
+// slug-style identifier "opsx-apply". Hatch's source model allows
+// namespaced commands because Claude Code renders a subdirectory under
+// .claude/commands/ as a colon-separated slash command (/opsx:apply).
+// No other supported target speaks namespaces, so they flatten the
+// slash to a dash both in filenames and in any textual identifier the
+// agent might match on.
+func FlatName(name string) string {
+	return strings.ReplaceAll(name, "/", "-")
 }
 
 // titleFromName turns "coding-style" into "Coding style".

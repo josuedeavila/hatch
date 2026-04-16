@@ -85,7 +85,7 @@ func (t Target) generateScope(sc *source.Scope) ([]target.Artifact, error) {
 			return nil, err
 		}
 		out = append(out, target.Artifact{
-			Path:    target.ScopedPath(sc.Path, ".opencode", "commands", c.Name+".md"),
+			Path:    target.ScopedPath(sc.Path, ".opencode", "commands", target.FlatName(c.Name)+".md"),
 			Mode:    target.ModeFile,
 			Content: content,
 		})

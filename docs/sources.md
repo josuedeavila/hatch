@@ -66,6 +66,43 @@ Path components must avoid the four primitive container names. Other
 `_`-prefixed names work but are discouraged in case future hatch
 versions add new primitive containers.
 
+## Namespaced commands
+
+Claude Code reads a subdirectory under `.claude/commands/` as a
+namespaced slash command: `.claude/commands/opsx/apply.md` is invoked
+as `/opsx:apply`. To express that in hatch source, drop the file into
+a subdirectory inside `_commands/`:
+
+```
+.hatch/
+  _commands/
+    commit.md           # /commit
+    opsx/
+      apply.md          # /opsx:apply in Claude Code
+      verify.md         # /opsx:verify in Claude Code
+```
+
+The relative path becomes the command's name (forward-slash joined,
+`opsx/apply`). Only Claude Code preserves the namespace in its output
+path. The other targets have no namespace convention, so hatch
+flattens `/` → `-` for their filenames and any textual identifier:
+
+| Target      | Output for `opsx/apply.md`                         |
+| ----------- | -------------------------------------------------- |
+| Claude Code | `.claude/commands/opsx/apply.md` (native subdir)   |
+| Codex       | `### Command: opsx-apply` in `AGENTS.md`           |
+| Copilot     | `.github/prompts/opsx-apply.prompt.md`             |
+| Cursor      | `.cursor/rules/command-opsx-apply.mdc`             |
+| OpenCode    | `.opencode/commands/opsx-apply.md`                 |
+
+Nesting works for any depth: `_commands/foo/bar/baz.md` loads with
+name `foo/bar/baz` and produces `.claude/commands/foo/bar/baz.md` for
+Claude and `foo-bar-baz` everywhere else.
+
+`hatch new command "opsx/apply"` slugifies the title and creates a
+flat file (`opsx-apply.md`); to scaffold a namespaced command, create
+the subdirectory manually and drop the `.md` in.
+
 ## Frontmatter
 
 Skills, commands, and agents start with a YAML frontmatter block

@@ -108,7 +108,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 				return nil, err
 			}
 			out = append(out, target.Artifact{
-				Path:    filepath.Join(".cursor", "rules", "command-"+prefix+c.Name+".mdc"),
+				Path:    filepath.Join(".cursor", "rules", "command-"+prefix+target.FlatName(c.Name)+".mdc"),
 				Mode:    target.ModeFile,
 				Content: content,
 			})
@@ -230,7 +230,7 @@ func scopeLabelledBody(scopePath string, p source.Primitive, displayName string)
 	buf.WriteString(": ")
 	buf.WriteString(scopePath)
 	buf.WriteString("/")
-	buf.WriteString(p.Name)
+	buf.WriteString(target.FlatName(p.Name))
 	buf.WriteString("\n\n")
 	buf.WriteString(body)
 	return buf.String()

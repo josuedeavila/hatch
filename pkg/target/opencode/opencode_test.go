@@ -40,6 +40,30 @@ func TestGenerate_AllFourPrimitives(t *testing.T) {
 	is.Equal(paths[".opencode/agents/security.md"], target.ModeFile)
 }
 
+func TestGenerate_NamespacedCommandFilenameFlattened(t *testing.T) {
+	// OpenCode reads commands from .opencode/commands/<name>.md and has no
+	// namespace convention. Source command "opsx/apply" flattens to
+	// opsx-apply.md.
+	is := is.New(t)
+	s := &source.Source{Scopes: []source.Scope{{
+		Commands: []source.Primitive{{
+			Kind: source.KindCommand, Name: "opsx/apply", Description: "d", Body: "b",
+		}},
+	}}}
+	arts, err := opencode.New().Generate(s)
+	is.NoErr(err)
+	found := false
+	for _, a := range arts {
+		if a.Path == ".opencode/commands/opsx-apply.md" {
+			found = true
+		}
+		if a.Path == ".opencode/commands/opsx/apply.md" {
+			t.Fatalf("namespaced filename leaked through: %s", a.Path)
+		}
+	}
+	is.True(found)
+}
+
 func TestGenerate_ScopedPrimitivesNested(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

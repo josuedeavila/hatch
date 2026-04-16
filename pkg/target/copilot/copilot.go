@@ -121,7 +121,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 				return nil, err
 			}
 			out = append(out, target.Artifact{
-				Path:    filepath.Join(".github", "prompts", prefix+c.Name+".prompt.md"),
+				Path:    filepath.Join(".github", "prompts", prefix+target.FlatName(c.Name)+".prompt.md"),
 				Mode:    target.ModeFile,
 				Content: content,
 			})
