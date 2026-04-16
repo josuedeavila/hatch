@@ -35,6 +35,21 @@ Edit files under `.hatch/_rules/`, `.hatch/_skills/`, `.hatch/_commands/`,
 or `.hatch/_agents/`, then re-run `hatch gen`. Commit the `.hatch/` source
 *and* the generated files together.
 
+## Feature support
+
+✓ means the agent has a native primitive; ⚠ means hatch emulates it.
+See [docs/features.md](docs/features.md) for how each emulation works,
+its output paths, and trade-offs.
+
+| Feature                   | Claude Code | Codex | Copilot | Cursor | OpenCode |
+| ------------------------- | :---------: | :---: | :-----: | :----: | :------: |
+| Rules (always-on)         |      ✓      |   ✓   |    ✓    |   ✓    |    ✓     |
+| Rules (scoped `applyTo`)  |      ⚠      |   ⚠   |    ✓    |   ✓    |    ⚠     |
+| Skills                    |      ✓      |   ✓   |    ⚠    |   ⚠    |    ✓     |
+| Slash commands            |      ✓      |   ⚠   |    ✓    |   ⚠    |    ✓     |
+| Sub-agents                |      ✓      |   ⚠   |    ✓    |   ⚠    |    ✓     |
+| Nested scopes (monorepo)  |      ✓      |   ✓   |    ⚠    |   ⚠    |    ✓     |
+
 ## CLI
 
 | Command                                                                         | What it does                                                 |
@@ -53,6 +68,7 @@ See [docs/cli.md](docs/cli.md) for the full flag reference, including
 
 - [CLI reference](docs/cli.md) — every subcommand and flag
 - [Source layout, nesting, and frontmatter](docs/sources.md) — how `.hatch/` is organised and what frontmatter fields do
+- [Feature support](docs/features.md) — what each target natively supports and how hatch emulates the gaps
 - [Targets and output mapping](docs/targets.md) — per-agent file locations and nested-scope routing
 - [Development](docs/development.md) — build and test the hatch binary itself
 
