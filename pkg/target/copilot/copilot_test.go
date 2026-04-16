@@ -125,6 +125,44 @@ func TestGenerate_NamespacedCommandPromptFilenameFlattened(t *testing.T) {
 	is.True(found)
 }
 
+func TestGenerate_FrontmatterFilesHaveMetadata(t *testing.T) {
+	// Copilot's file-owned frontmatter outputs (scoped rules,
+	// prompt-file commands, agent files) all carry metadata.generated
+	// and metadata.source. The root-scope copilot-instructions block
+	// is not a frontmatter file so it's excluded.
+	is := is.New(t)
+	s := &source.Source{
+		HatchVersion: "v0.9.9-test",
+		Scopes: []source.Scope{{
+			Rules: []source.Primitive{{
+				Kind: source.KindRule, Name: "go-rules", ApplyTo: "**/*.go", Body: "go body", SourcePath: "x",
+			}},
+			Commands: []source.Primitive{{
+				Kind: source.KindCommand, Name: "commit", Description: "d", Body: "b", SourcePath: "x",
+			}},
+			Agents: []source.Primitive{{
+				Kind: source.KindAgent, Name: "security", Description: "d", Body: "b", SourcePath: "x",
+			}},
+		}},
+	}
+	arts, err := copilot.New().Generate(s)
+	is.NoErr(err)
+	byPath := map[string]string{}
+	for _, a := range arts {
+		byPath[a.Path] = a.Content
+	}
+	rule := byPath[".github/instructions/go-rules.instructions.md"]
+	is.True(strings.Contains(rule, "metadata:"))
+	is.True(strings.Contains(rule, "generated: hatch@v0.9.9-test"))
+	is.True(strings.Contains(rule, "source: .hatch/_rules/go-rules.md"))
+
+	cmd := byPath[".github/prompts/commit.prompt.md"]
+	is.True(strings.Contains(cmd, "source: .hatch/_commands/commit.md"))
+
+	agent := byPath[".github/agents/security.agent.md"]
+	is.True(strings.Contains(agent, "source: .hatch/_agents/security.md"))
+}
+
 func TestGenerate_ScopedRule_NoApplyTo_BecomesInstructionsFile(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

@@ -9,11 +9,15 @@ import "github.com/matryer/hatch/pkg/source"
 // `hatch clean` removes the same meta-skill outputs that `hatch gen`
 // wrote. Callers pass includeMeta from a `-no-hatch-skill` flag: pass
 // false to opt out of the auto-injected meta skill for this run.
-func loadSource(includeMeta bool) (*source.Source, error) {
+//
+// hatchVersion is stamped into the returned Source so targets can
+// embed it as metadata.generated in every generated file's frontmatter.
+func loadSource(includeMeta bool, hatchVersion string) (*source.Source, error) {
 	s, err := source.Load(".")
 	if err != nil {
 		return nil, err
 	}
+	s.HatchVersion = hatchVersion
 	if includeMeta {
 		injectMetaSkill(s)
 	}

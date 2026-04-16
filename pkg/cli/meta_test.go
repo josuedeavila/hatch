@@ -52,6 +52,49 @@ func TestGen_AutoInjectsMetaSkillIntoEveryTarget(t *testing.T) {
 	is.True(strings.Contains(string(cu), "hatch gen"))
 }
 
+func TestGen_AutoInjectedMetaSkillOmitsSourceMetadata(t *testing.T) {
+	// When hatch auto-injects the meta skill (no .hatch/_skills/hatch/
+	// on disk), there IS no source file — pointing the `source:`
+	// metadata at .hatch/_skills/hatch/SKILL.md would be a lie. The
+	// generated-by-hatch line still appears; source is dropped.
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	is.NoErr(os.MkdirAll(".hatch/_rules", 0o755))
+	_, _, err := invoke(t, "gen")
+	is.NoErr(err)
+
+	body, err := os.ReadFile(".claude/skills/hatch/SKILL.md")
+	is.NoErr(err)
+	s := string(body)
+	is.True(strings.Contains(s, "generated: hatch@"))
+	is.True(!strings.Contains(s, "source: .hatch/_skills/hatch/SKILL.md"))
+}
+
+func TestGen_UserOverriddenMetaSkillHasSourceMetadata(t *testing.T) {
+	// If the user writes their own .hatch/_skills/hatch/SKILL.md, the
+	// source IS real, so the `source:` metadata points at it.
+	is := is.New(t)
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	is.NoErr(os.MkdirAll(".hatch/_skills/hatch", 0o755))
+	is.NoErr(os.WriteFile(".hatch/_skills/hatch/SKILL.md", []byte(`---
+description: My custom hatch skill
+---
+
+body
+`), 0o644))
+
+	_, _, err := invoke(t, "gen")
+	is.NoErr(err)
+
+	body, err := os.ReadFile(".claude/skills/hatch/SKILL.md")
+	is.NoErr(err)
+	is.True(strings.Contains(string(body), "source: .hatch/_skills/hatch/SKILL.md"))
+}
+
 func TestGen_UserSkillNamedHatchOverridesInjectedMetaSkill(t *testing.T) {
 	// If the user writes their own .hatch/_skills/hatch/SKILL.md, that
 	// version wins — injectMetaSkill is a no-op so users can override

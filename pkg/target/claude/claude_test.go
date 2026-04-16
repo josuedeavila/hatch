@@ -51,6 +51,57 @@ func TestGenerate_ApplyToRuleGetsHeading(t *testing.T) {
 	is.True(strings.Contains(blk.Content, "Go body."))
 }
 
+func TestGenerate_AddsMetadataBlock(t *testing.T) {
+	// Every file-owned frontmatter output carries a metadata block with
+	// `generated: hatch@<version>` and `source: .hatch/...`. This test
+	// covers a skill; a command (which reuses renderSkill) is covered
+	// implicitly, but we also assert an agent and a scoped command to
+	// pin the source path shape for each kind and scope.
+	is := is.New(t)
+	s := &source.Source{
+		HatchVersion: "v0.9.9-test",
+		Scopes: []source.Scope{
+			{
+				Path: "",
+				Skills: []source.Primitive{{
+					Kind: source.KindSkill, Name: "review-pr", Description: "d", Body: "b", SourcePath: "x",
+				}},
+				Commands: []source.Primitive{{
+					Kind: source.KindCommand, Name: "opsx/apply", Description: "d", Body: "b", SourcePath: "x",
+				}},
+				Agents: []source.Primitive{{
+					Kind: source.KindAgent, Name: "guard", Description: "d", Body: "b", SourcePath: "x",
+				}},
+			},
+			{
+				Path: "backend",
+				Commands: []source.Primitive{{
+					Kind: source.KindCommand, Name: "deploy", Description: "d", Body: "b", SourcePath: "x",
+				}},
+			},
+		},
+	}
+	arts, err := claude.New().Generate(s)
+	is.NoErr(err)
+	byPath := map[string]string{}
+	for _, a := range arts {
+		byPath[a.Path] = a.Content
+	}
+	skill := byPath[".claude/skills/review-pr/SKILL.md"]
+	is.True(strings.Contains(skill, "metadata:"))
+	is.True(strings.Contains(skill, "generated: hatch@v0.9.9-test"))
+	is.True(strings.Contains(skill, "source: .hatch/_skills/review-pr/SKILL.md"))
+
+	cmd := byPath[".claude/commands/opsx/apply.md"]
+	is.True(strings.Contains(cmd, "source: .hatch/_commands/opsx/apply.md"))
+
+	agent := byPath[".claude/agents/guard.md"]
+	is.True(strings.Contains(agent, "source: .hatch/_agents/guard.md"))
+
+	scoped := byPath["backend/.claude/commands/deploy.md"]
+	is.True(strings.Contains(scoped, "source: .hatch/backend/_commands/deploy.md"))
+}
+
 func TestGenerate_SkillBecomesFileUnderDotClaude(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{{

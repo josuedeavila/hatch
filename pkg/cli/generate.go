@@ -16,7 +16,7 @@ import (
 // cmdGen is the implementation of `hatch gen`. It always operates on the
 // current working directory. Target selection is via the `-targets names`
 // flag; an empty value means every registered target.
-func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+func cmdGen(ctx context.Context, version string, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	cf := commonFlags("gen", stderr)
 	if err := cf.fs.Parse(args); err != nil {
 		return err
@@ -31,7 +31,7 @@ func cmdGen(ctx context.Context, available *target.Set, args []string, stdout, s
 	if err != nil {
 		return err
 	}
-	src, err := loadSource(!*cf.noHatchSkill)
+	src, err := loadSource(!*cf.noHatchSkill, version)
 	if err != nil {
 		return err
 	}

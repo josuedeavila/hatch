@@ -113,6 +113,35 @@ func TestGenerate_NamespacedCommandFilenameFlattened(t *testing.T) {
 	is.True(!paths[".cursor/rules/command-opsx/apply.mdc"])
 }
 
+func TestGenerate_MdcFilesHaveMetadata(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{
+		HatchVersion: "v0.9.9-test",
+		Scopes: []source.Scope{{
+			Rules: []source.Primitive{{
+				Kind: source.KindRule, Name: "style", Body: "rule body", SourcePath: "x",
+			}},
+			Skills: []source.Primitive{{
+				Kind: source.KindSkill, Name: "review-pr", Description: "d", Body: "b", SourcePath: "x",
+			}},
+		}},
+	}
+	arts, err := cursor.New().Generate(s)
+	is.NoErr(err)
+	byPath := map[string]string{}
+	for _, a := range arts {
+		byPath[a.Path] = a.Content
+	}
+	rule := byPath[".cursor/rules/style.mdc"]
+	is.True(strings.Contains(rule, "metadata:"))
+	is.True(strings.Contains(rule, "generated: hatch@v0.9.9-test"))
+	is.True(strings.Contains(rule, "source: .hatch/_rules/style.md"))
+
+	skill := byPath[".cursor/rules/skill-review-pr.mdc"]
+	is.True(strings.Contains(skill, "metadata:"))
+	is.True(strings.Contains(skill, "source: .hatch/_skills/review-pr/SKILL.md"))
+}
+
 func TestGenerate_ScopedRuleSluggedAndGlobbed(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

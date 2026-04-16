@@ -135,3 +135,28 @@ Body markdown. Two template vars substitute at generation time:
 
 Rules are plain markdown and don't need frontmatter. If they have one,
 only `targets` and `applyTo` are meaningful.
+
+## Generated metadata
+
+Every file-owned output with frontmatter carries a `metadata:` block
+so a reader of the generated file can see which hatch built it and
+where to go to edit the source:
+
+```yaml
+metadata:
+  generated: hatch@v0.4.0
+  source: .hatch/_skills/review-pr/SKILL.md
+```
+
+The shape follows the
+[agentskills.io `metadata` convention](https://agentskills.io/specification#metadata-field)
+— a free-form string/string map — so hatch's keys can't collide with
+spec-defined fields like `license` or `compatibility`. The same shape
+is used on non-SKILL.md outputs (commands, agents, `.mdc` rules,
+Copilot instructions files) for consistency.
+
+Block-injected files (`CLAUDE.md`, `AGENTS.md`,
+`.github/copilot-instructions.md`) have no frontmatter of their own
+and don't carry this metadata. The hatch-injected meta skill omits
+`source` because no `.hatch/_skills/hatch/SKILL.md` exists until you
+create one.

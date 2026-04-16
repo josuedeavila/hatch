@@ -14,7 +14,7 @@ import (
 // cmdClean re-derives what a fresh `hatch gen` would write from the current
 // source tree, then removes those files (for ModeFile) or strips just the
 // hatch block (for ModeBlock). No manifest is kept.
-func cmdClean(ctx context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+func cmdClean(ctx context.Context, version string, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	cf := commonFlags("clean", stderr)
 	if err := cf.fs.Parse(args); err != nil {
 		return err
@@ -29,7 +29,7 @@ func cmdClean(ctx context.Context, available *target.Set, args []string, stdout,
 	if err != nil {
 		return err
 	}
-	src, err := loadSource(!*cf.noHatchSkill)
+	src, err := loadSource(!*cf.noHatchSkill, version)
 	if err != nil {
 		return err
 	}

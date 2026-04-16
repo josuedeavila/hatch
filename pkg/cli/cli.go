@@ -28,11 +28,11 @@ func Run(ctx context.Context, version string, targets *target.Set, args []string
 	cmd, rest := args[1], args[2:]
 	switch cmd {
 	case "gen":
-		return cmdGen(ctx, targets, rest, stdout, stderr)
+		return cmdGen(ctx, version, targets, rest, stdout, stderr)
 	case "list":
-		return cmdList(ctx, targets, rest, stdout, stderr)
+		return cmdList(ctx, version, targets, rest, stdout, stderr)
 	case "clean":
-		return cmdClean(ctx, targets, rest, stdout, stderr)
+		return cmdClean(ctx, version, targets, rest, stdout, stderr)
 	case "init":
 		return cmdInit(ctx, rest, stdout, stderr)
 	case "new":

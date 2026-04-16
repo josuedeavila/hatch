@@ -33,7 +33,7 @@ func (Target) DisplayName() string { return displayName }
 func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	var out []target.Artifact
 	for i := range s.Scopes {
-		arts, err := t.generateScope(&s.Scopes[i])
+		arts, err := t.generateScope(&s.Scopes[i], s.HatchVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +42,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 	return out, nil
 }
 
-func (t Target) generateScope(sc *source.Scope) ([]target.Artifact, error) {
+func (t Target) generateScope(sc *source.Scope, hatchVersion string) ([]target.Artifact, error) {
 	var out []target.Artifact
 
 	// Codex has no first-class slash-command or sub-agent primitive, so
@@ -67,7 +67,7 @@ func (t Target) generateScope(sc *source.Scope) ([]target.Artifact, error) {
 		if !sk.HasTarget(name) {
 			continue
 		}
-		content, err := renderSkill(sk, displayName, name)
+		content, err := renderSkill(sk, displayName, name, hatchVersion, target.SourceFilePathFor(sc.Path, sk))
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func nonEmpty(sections ...string) []string {
 	return out
 }
 
-func renderSkill(p source.Primitive, displayName, targetName string) (string, error) {
+func renderSkill(p source.Primitive, displayName, targetName, hatchVersion, sourcePath string) (string, error) {
 	fields := []render.Field{
 		{Key: "name", Value: p.Name},
 		{Key: "description", Value: p.Description},
@@ -108,6 +108,7 @@ func renderSkill(p source.Primitive, displayName, targetName string) (string, er
 	if over, ok := p.Overrides[name]; ok {
 		fields = render.MergeOverride(fields, over)
 	}
+	fields = append(fields, target.MetadataField(hatchVersion, sourcePath))
 	fm, err := render.Frontmatter(fields)
 	if err != nil {
 		return "", err

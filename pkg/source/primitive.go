@@ -88,6 +88,14 @@ type Scope struct {
 // path. The root scope is always present, possibly empty.
 type Source struct {
 	Scopes []Scope
+
+	// HatchVersion is the version of the hatch binary loading this
+	// source (e.g. "v0.3.0"). Targets embed it in every generated file's
+	// frontmatter as `metadata.generated: hatch@<version>` so users can
+	// tell which hatch produced what. Zero-value means omit the field.
+	// Populated by the CLI; not set by source.Load, since the loader
+	// doesn't know what build is calling it.
+	HatchVersion string
 }
 
 // Root returns the root scope (the one with empty Path). Always non-nil

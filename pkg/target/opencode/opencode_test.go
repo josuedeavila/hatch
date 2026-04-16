@@ -64,6 +64,38 @@ func TestGenerate_NamespacedCommandFilenameFlattened(t *testing.T) {
 	is.True(found)
 }
 
+func TestGenerate_FrontmatterFilesHaveMetadata(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{
+		HatchVersion: "v0.9.9-test",
+		Scopes: []source.Scope{{
+			Skills: []source.Primitive{{
+				Kind: source.KindSkill, Name: "review-pr", Description: "d", Body: "b", SourcePath: "x",
+			}},
+			Commands: []source.Primitive{{
+				Kind: source.KindCommand, Name: "commit", Description: "d", Body: "b", SourcePath: "x",
+			}},
+			Agents: []source.Primitive{{
+				Kind: source.KindAgent, Name: "security", Description: "d", Body: "b", SourcePath: "x",
+			}},
+		}},
+	}
+	arts, err := opencode.New().Generate(s)
+	is.NoErr(err)
+	byPath := map[string]string{}
+	for _, a := range arts {
+		byPath[a.Path] = a.Content
+	}
+	skill := byPath[".opencode/skills/review-pr/SKILL.md"]
+	is.True(strings.Contains(skill, "metadata:"))
+	is.True(strings.Contains(skill, "generated: hatch@v0.9.9-test"))
+	is.True(strings.Contains(skill, "source: .hatch/_skills/review-pr/SKILL.md"))
+	cmd := byPath[".opencode/commands/commit.md"]
+	is.True(strings.Contains(cmd, "source: .hatch/_commands/commit.md"))
+	agent := byPath[".opencode/agents/security.md"]
+	is.True(strings.Contains(agent, "source: .hatch/_agents/security.md"))
+}
+
 func TestGenerate_ScopedPrimitivesNested(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

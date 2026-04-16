@@ -8,7 +8,7 @@ import (
 	"github.com/matryer/hatch/pkg/target"
 )
 
-func cmdList(_ context.Context, available *target.Set, args []string, stdout, stderr io.Writer) error {
+func cmdList(_ context.Context, version string, available *target.Set, args []string, stdout, stderr io.Writer) error {
 	cf := commonFlags("list", stderr)
 	if err := cf.fs.Parse(args); err != nil {
 		return err
@@ -20,7 +20,7 @@ func cmdList(_ context.Context, available *target.Set, args []string, stdout, st
 	if err != nil {
 		return err
 	}
-	src, err := loadSource(!*cf.noHatchSkill)
+	src, err := loadSource(!*cf.noHatchSkill, version)
 	if err != nil {
 		return err
 	}

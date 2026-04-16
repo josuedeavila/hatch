@@ -49,6 +49,29 @@ func TestGenerate_SkillUsesAgentskillsPath(t *testing.T) {
 	is.True(found) // uses .agents/skills/ not .codex/skills/
 }
 
+func TestGenerate_SkillSKILLHasMetadata(t *testing.T) {
+	is := is.New(t)
+	s := &source.Source{
+		HatchVersion: "v0.9.9-test",
+		Scopes: []source.Scope{{
+			Skills: []source.Primitive{{
+				Kind: source.KindSkill, Name: "review-pr", Description: "d", Body: "b", SourcePath: "x",
+			}},
+		}},
+	}
+	arts, err := codex.New().Generate(s)
+	is.NoErr(err)
+	for _, a := range arts {
+		if a.Path == ".agents/skills/review-pr/SKILL.md" {
+			is.True(strings.Contains(a.Content, "metadata:"))
+			is.True(strings.Contains(a.Content, "generated: hatch@v0.9.9-test"))
+			is.True(strings.Contains(a.Content, "source: .hatch/_skills/review-pr/SKILL.md"))
+			return
+		}
+	}
+	t.Fatal("skill SKILL.md not found")
+}
+
 func TestGenerate_ScopedRulesGoToNestedAGENTS(t *testing.T) {
 	is := is.New(t)
 	s := &source.Source{Scopes: []source.Scope{

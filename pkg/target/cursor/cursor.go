@@ -67,7 +67,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 				return nil, err
 			}
 			alwaysApply := len(globs) == 0
-			content, err := renderRuleMdc(r, globs, alwaysApply, displayName, name)
+			content, err := renderRuleMdc(r, globs, alwaysApply, displayName, name, s.HatchVersion, target.SourceFilePathFor(sc.Path, r))
 			if err != nil {
 				return nil, err
 			}
@@ -86,7 +86,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 				continue
 			}
 			body := scopeLabelledBody(sc.Path, sk, displayName)
-			content, err := renderInlineMdc(sk.Description, body)
+			content, err := renderInlineMdc(sk.Description, body, s.HatchVersion, target.SourceFilePathFor(sc.Path, sk))
 			if err != nil {
 				return nil, err
 			}
@@ -103,7 +103,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 				continue
 			}
 			body := scopeLabelledBody(sc.Path, c, displayName)
-			content, err := renderInlineMdc(c.Description, body)
+			content, err := renderInlineMdc(c.Description, body, s.HatchVersion, target.SourceFilePathFor(sc.Path, c))
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +120,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 				continue
 			}
 			body := scopeLabelledBody(sc.Path, a, displayName)
-			content, err := renderInlineMdc(a.Description, body)
+			content, err := renderInlineMdc(a.Description, body, s.HatchVersion, target.SourceFilePathFor(sc.Path, a))
 			if err != nil {
 				return nil, err
 			}
@@ -170,7 +170,7 @@ func scopeSlug(scopePath string) string {
 // with the supplied globs/alwaysApply frontmatter values. Per-target
 // `cursor:` passthrough fields from the source are merged into the
 // frontmatter alongside.
-func renderRuleMdc(p source.Primitive, globs []string, alwaysApply bool, displayName, targetName string) (string, error) {
+func renderRuleMdc(p source.Primitive, globs []string, alwaysApply bool, displayName, targetName, hatchVersion, sourcePath string) (string, error) {
 	fields := []render.Field{}
 	if p.Description != "" {
 		fields = append(fields, render.Field{Key: "description", Value: p.Description})
@@ -182,6 +182,7 @@ func renderRuleMdc(p source.Primitive, globs []string, alwaysApply bool, display
 	if over, ok := p.Overrides[name]; ok {
 		fields = render.MergeOverride(fields, over)
 	}
+	fields = append(fields, target.MetadataField(hatchVersion, sourcePath))
 	fm, err := render.Frontmatter(fields)
 	if err != nil {
 		return "", err
@@ -197,12 +198,13 @@ func renderRuleMdc(p source.Primitive, globs []string, alwaysApply bool, display
 // commands, and agents (which have no native Cursor primitive). These
 // always have alwaysApply: true so the body is visible in every
 // session, mirroring how Copilot inlines the same primitives.
-func renderInlineMdc(description, body string) (string, error) {
+func renderInlineMdc(description, body, hatchVersion, sourcePath string) (string, error) {
 	fields := []render.Field{}
 	if description != "" {
 		fields = append(fields, render.Field{Key: "description", Value: description})
 	}
 	fields = append(fields, render.Field{Key: "alwaysApply", Value: true})
+	fields = append(fields, target.MetadataField(hatchVersion, sourcePath))
 	fm, err := render.Frontmatter(fields)
 	if err != nil {
 		return "", err

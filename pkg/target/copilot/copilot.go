@@ -100,7 +100,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			if err != nil {
 				return nil, err
 			}
-			content, err := renderScopedRule(r, applyTo, displayName, name)
+			content, err := renderScopedRule(r, applyTo, displayName, name, s.HatchVersion, target.SourceFilePathFor(sc.Path, r))
 			if err != nil {
 				return nil, err
 			}
@@ -116,7 +116,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			if !c.HasTarget(name) {
 				continue
 			}
-			content, err := renderSlashPrimitive(c, displayName, name)
+			content, err := renderSlashPrimitive(c, displayName, name, s.HatchVersion, target.SourceFilePathFor(sc.Path, c))
 			if err != nil {
 				return nil, err
 			}
@@ -132,7 +132,7 @@ func (t Target) Generate(s *source.Source) ([]target.Artifact, error) {
 			if !a.HasTarget(name) {
 				continue
 			}
-			content, err := renderSlashPrimitive(a, displayName, name)
+			content, err := renderSlashPrimitive(a, displayName, name, s.HatchVersion, target.SourceFilePathFor(sc.Path, a))
 			if err != nil {
 				return nil, err
 			}
@@ -215,7 +215,7 @@ func scopedSkillsItems(s *source.Source, targetName, displayName string) string 
 	return strings.TrimRight(buf.String(), "\n")
 }
 
-func renderScopedRule(p source.Primitive, applyTo, displayName, targetName string) (string, error) {
+func renderScopedRule(p source.Primitive, applyTo, displayName, targetName, hatchVersion, sourcePath string) (string, error) {
 	fields := []render.Field{
 		{Key: "applyTo", Value: applyTo},
 	}
@@ -225,6 +225,7 @@ func renderScopedRule(p source.Primitive, applyTo, displayName, targetName strin
 	if over, ok := p.Overrides[name]; ok {
 		fields = render.MergeOverride(fields, over)
 	}
+	fields = append(fields, target.MetadataField(hatchVersion, sourcePath))
 	fm, err := render.Frontmatter(fields)
 	if err != nil {
 		return "", err
@@ -236,13 +237,14 @@ func renderScopedRule(p source.Primitive, applyTo, displayName, targetName strin
 	return fm + "\n" + body + "\n", nil
 }
 
-func renderSlashPrimitive(p source.Primitive, displayName, targetName string) (string, error) {
+func renderSlashPrimitive(p source.Primitive, displayName, targetName, hatchVersion, sourcePath string) (string, error) {
 	fields := []render.Field{
 		{Key: "description", Value: p.Description},
 	}
 	if over, ok := p.Overrides[name]; ok {
 		fields = render.MergeOverride(fields, over)
 	}
+	fields = append(fields, target.MetadataField(hatchVersion, sourcePath))
 	fm, err := render.Frontmatter(fields)
 	if err != nil {
 		return "", err
